@@ -289,6 +289,83 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
     });
 
+    // System integrations: Discord RPC, Global Hotkeys, Ultra-light Headless Tray
+    let mut discord_rpc = platform::DiscordRpcService::new(None);
+    let _ = discord_rpc.connect();
+
+    let hotkeys = platform::GlobalHotkeysEngine::new().ok();
+    let tray = platform::HeadlessTrayMode::new().ok();
+
+    let timer = slint::Timer::default();
+    let cmd_timer_tx = cmd_tx.clone();
+    let window_timer_weak = window_weak.clone();
+
+    timer.start(
+        slint::TimerMode::Repeated,
+        std::time::Duration::from_millis(100),
+        move || {
+            // 1. Poll global hotkeys
+            if let Some(ref hk) = hotkeys {
+                if let Some(action) = hk.poll_event() {
+                    match action {
+                        platform::GlobalHotkeyAction::PlayPause => {
+                            let _ = cmd_timer_tx.try_send(core::CoreCommand::Play);
+                        }
+                        platform::GlobalHotkeyAction::NextTrack => {
+                            let _ = cmd_timer_tx.try_send(core::CoreCommand::Next);
+                        }
+                        platform::GlobalHotkeyAction::PreviousTrack => {
+                            let _ = cmd_timer_tx.try_send(core::CoreCommand::Previous);
+                        }
+                        platform::GlobalHotkeyAction::SeekForward10s => {
+                            log::info!("Hotkey: Seek +10s");
+                        }
+                        platform::GlobalHotkeyAction::SeekBackward10s => {
+                            log::info!("Hotkey: Seek -10s");
+                        }
+                        platform::GlobalHotkeyAction::ToggleLike => {
+                            log::info!("Hotkey: Toggle Like");
+                        }
+                        platform::GlobalHotkeyAction::Dislike => {
+                            let _ = cmd_timer_tx.try_send(core::CoreCommand::DislikeTrack(String::new()));
+                        }
+                        platform::GlobalHotkeyAction::NextEqPreset => {
+                            log::info!("Hotkey: Cycle EQ Preset");
+                        }
+                    }
+                }
+            }
+
+            // 2. Poll tray icon events
+            if let Some(ref t) = tray {
+                if let Some(action) = t.poll_tray_events() {
+                    match action {
+                        platform::TrayEventAction::RestoreWindow => {
+                            if let Some(w) = window_timer_weak.upgrade() {
+                                let _ = w.show();
+                            }
+                        }
+                        platform::TrayEventAction::MinimizeToTray => {
+                            if let Some(w) = window_timer_weak.upgrade() {
+                                let _ = w.hide();
+                            }
+                        }
+                        platform::TrayEventAction::PlayPause => {
+                            let _ = cmd_timer_tx.try_send(core::CoreCommand::Play);
+                        }
+                        platform::TrayEventAction::NextTrack => {
+                            let _ = cmd_timer_tx.try_send(core::CoreCommand::Next);
+                        }
+                        platform::TrayEventAction::Quit => {
+                            std::process::exit(0);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        },
+    );
+
     main_window.run()?;
     Ok(())
 }
