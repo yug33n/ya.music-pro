@@ -20,6 +20,8 @@ export component MainWindow inherits Window {
     in-out property <string> user-name: "Гость";
     in-out property <bool> is-authorized: false;
     in-out property <bool> fullscreen-open: false;
+    in-out property <color> dynamic-accent: #FFCC00;
+    animate dynamic-accent { duration: 400ms; easing: ease-in-out; }
 
     // Lyrics properties
     in-out property <[LyricRow]> current-lyrics: [];
