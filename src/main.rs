@@ -2,6 +2,7 @@ pub mod api;
 pub mod audio;
 pub mod core;
 pub mod db;
+pub mod lyrics;
 pub mod ui;
 
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
@@ -85,6 +86,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     main_window.set_collection_count(sample_tracks.len() as i32);
     main_window.set_collection_tracks(ModelRc::new(VecModel::from(sample_tracks)));
+
+    // Sample LRC lyrics for preview
+    let sample_lyrics = vec![
+        LyricRow {
+            timestamp_ms: 0,
+            text: SharedString::from("Давай с тобой уедем туда, где нас не найдут"),
+        },
+        LyricRow {
+            timestamp_ms: 5_000,
+            text: SharedString::from("Где волны бьются о скалы и чайки поют"),
+        },
+        LyricRow {
+            timestamp_ms: 12_000,
+            text: SharedString::from("И пусть весь мир подождет, пока мы одни"),
+        },
+        LyricRow {
+            timestamp_ms: 18_000,
+            text: SharedString::from("Сгорают в небе огни, сгорают огни..."),
+        },
+    ];
+    main_window.set_current_lyrics(ModelRc::new(VecModel::from(sample_lyrics)));
+    main_window.set_active_lyric_index(0);
 
     // Connect callbacks
     let cmd_tx = channels.command_sender.clone();
@@ -245,6 +268,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     main_window.on_toggle_lyrics(|| {
         log::info!("Toggle fullscreen lyrics requested");
+    });
+
+    main_window.on_lyric_line_clicked({
+        let tx = cmd_tx.clone();
+        move |timestamp_ms| {
+            log::info!("Seeking to lyric line timestamp: {} ms", timestamp_ms);
+            let _ = tx.try_send(core::CoreCommand::Seek(timestamp_ms as u64));
+        }
     });
 
     let _engine = audio::AudioEngine::new(&device_mgr).ok();
