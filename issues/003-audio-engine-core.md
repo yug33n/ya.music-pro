@@ -37,7 +37,7 @@
 ## 3. Детализированный чек-лист подзадач
 - [x] Сформировать файл issues/003-audio-engine-core.md с чек-листом.
 - [x] Реализовать модуль аудио-устройств и CPAL выходной поток с lock-free ring buffer.
-- [ ] Реализовать декодер Symphonia с поддержкой MP3/FLAC и синхронным ресемплером Rubato.
+- [x] Реализовать декодер Symphonia с поддержкой MP3/FLAC и синхронным ресемплером Rubato.
 - [ ] Реализовать высокоуровневый AudioController (play, pause, resume, stop, seek, volume, position).
 - [ ] Написать unit-тесты для компонентов аудио-движка.
 - [ ] Провести валидацию проекта: `cargo check`, `cargo clippy`, `cargo test`.
