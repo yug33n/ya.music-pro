@@ -1,3 +1,4 @@
+pub mod api;
 pub mod core;
 pub mod db;
 
@@ -11,6 +12,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _channels = core::CoreChannels::new(64, 128);
     let _state = core::AppState::default();
     let _db = db::DatabaseRepository::in_memory()?;
+    let _api = api::YandexApiClient::new();
 
     let main_window = MainWindow::new()?;
     main_window.run()?;
