@@ -32,7 +32,7 @@
 - [x] Сформировать файл issues/001-scaffolding-and-db.md с чек-листом.
 - [x] Настроить Cargo.toml со всеми ключевыми зависимостями проекта.
 - [x] Сконфигурировать build.rs для сборки Slint UI файлов и завести минимальный ui/main.slint.
-- [ ] Реализовать AppState, каналы сообщений CoreCommand и CoreEvent.
+- [x] Реализовать AppState, каналы сообщений CoreCommand и CoreEvent.
 - [ ] Реализовать SQLite миграции: таблицы config, blacklist, cache_entries, eq_presets.
 - [ ] Написать unit-тесты для миграций и репозитория БД.
 - [ ] Провести финальную валидацию: `cargo check`, `cargo clippy`, `cargo test`.
