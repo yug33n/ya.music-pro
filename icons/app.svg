@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a1a1a"/>
+      <stop offset="50%" stop-color="#141414"/>
+      <stop offset="100%" stop-color="#0e0e0e"/>
+    </linearGradient>
+    <linearGradient id="orangeGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ED4027"/>
+      <stop offset="50%" stop-color="#FF5A2D"/>
+      <stop offset="100%" stop-color="#FEB31D"/>
+    </linearGradient>
+    <linearGradient id="rimGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FEB31D" stop-opacity="0.35"/>
+      <stop offset="50%" stop-color="#ED4027" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#141414" stop-opacity="0.6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Deep Matte Ink Squircle Background -->
+  <rect x="8" y="8" width="240" height="240" rx="60" fill="url(#bgGrad)" stroke="url(#rimGrad)" stroke-width="2.5"/>
+
+  <!-- Minimalist Audiophile Wave + Play Icon -->
+  <g fill="url(#orangeGrad)">
+    <!-- Wave Bar 1 -->
+    <rect x="68" y="104" width="14" height="48" rx="7"/>
+    <!-- Wave Bar 2 -->
+    <rect x="94" y="82" width="14" height="92" rx="7"/>
+    <!-- Play Triangle with Rounded Corners -->
+    <path d="M 124 74 C 124 67.5, 131 63.5, 137 67 L 201 121 C 206 125, 206 131, 201 135 L 137 189 C 131 192.5, 124 188.5, 124 182 Z"/>
+  </g>
+</svg>

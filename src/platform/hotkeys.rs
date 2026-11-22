@@ -92,7 +92,9 @@ impl GlobalHotkeysEngine {
                 self.hotkey_to_action.remove(&prev.id());
             }
 
-            manager.register(hotkey)?;
+            if let Err(e) = manager.register(hotkey) {
+                log::warn!("Failed to register hotkey with OS manager: {}", e);
+            }
         }
 
         self.hotkey_to_action.insert(hotkey.id(), action);
@@ -126,11 +128,15 @@ impl GlobalHotkeysEngine {
 
 impl Default for GlobalHotkeysEngine {
     fn default() -> Self {
-        Self::new().unwrap_or_else(|_| Self {
-            manager: None,
-            hotkey_to_action: HashMap::new(),
-            action_to_hotkey: HashMap::new(),
-            is_enabled: false,
+        Self::new().unwrap_or_else(|_| {
+            let mut engine = Self {
+                manager: None,
+                hotkey_to_action: HashMap::new(),
+                action_to_hotkey: HashMap::new(),
+                is_enabled: true,
+            };
+            engine.register_default_bindings();
+            engine
         })
     }
 }

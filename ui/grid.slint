@@ -1,0 +1,88 @@
+// Сетка карточек для страниц «Смотреть всё» (плейлисты, альбомы).
+
+import { Theme } from "theme.slint";
+import { Icons, Icon, NavCircle } from "widgets.slint";
+import { T, App } from "state.slint";
+import { Tab } from "rows.slint";
+import { CardTile } from "shelf.slint";
+
+// Страница «Смотреть всё»: заголовок с кнопкой назад, вкладки и сетка карточек от 204,
+// как CollectionAlbumsPage / CollectionPlaylistsPage оригинала.
+export component GridPage inherits Rectangle {
+    property <length> pad: 25px;
+
+    flick := Flickable {
+        property <length> w: self.width - 2 * pad;
+        property <int> cols: max(2, floor((w + 24px) / 228px));
+        property <length> size: (w - (cols - 1) * 24px) / cols;
+        property <length> top: App.grid-tabs.length > 1 ? 133px : 97px;
+        property <int> n: App.grid-cards.length + (App.grid-create ? 1 : 0);
+        content-height: top + ceil(n / cols) * (size + 112px) + 24px;
+
+        if App.can-back: NavCircle {
+            x: pad;
+            y: 25px;
+            icon: Icons.arrow-left-small;
+            clicked => { App.go-back(); }
+        }
+        Text {
+            x: App.can-back ? 73px : pad;
+            y: 25px;
+            width: parent.width - self.x - pad;
+            height: 32px;
+            text: App.grid-title;
+            overflow: elide;
+            vertical-alignment: center;
+            font-family: "YS Music Headline";
+            font-size: Theme.font-size-headline-xl;
+            font-weight: 700;
+            color: Theme.controls-color-primary-text-enabled-variant;
+        }
+        if App.grid-tabs.length > 1: HorizontalLayout {
+            x: pad;
+            y: 73px;
+            height: 36px;
+            spacing: 8px;
+            for t[i] in App.grid-tabs: Tab {
+                text: t;
+                selected: i == App.grid-tab;
+                clicked => { App.select-grid-tab(i); }
+            }
+        }
+
+        // «Новый плейлист» — первая карточка во вкладке «Вы собрали».
+        if App.grid-create: Rectangle {
+            x: pad;
+            y: flick.top;
+            width: flick.size;
+            height: flick.size + 26px;
+            Rectangle {
+                height: flick.size;
+                y: 0;
+                border-radius: 6px;
+                background: create-ta.has-hover ? Theme.controls-color-secondary-default-hovered : Theme.controls-color-secondary-default-disabled;
+                animate background { duration: App.motion ? 150ms : 0ms; }
+                Icon { source: Icons.add-large; size: 38px; colorize: Theme.controls-color-primary-text-enabled; }
+            }
+            Text {
+                y: flick.size + 9px;
+                text: T.t("Новый плейлист");
+                font-size: Theme.font-size-label-s;
+                font-weight: 500;
+                color: Theme.controls-color-primary-text-enabled-variant;
+            }
+            create-ta := TouchArea {
+                mouse-cursor: MouseCursor.pointer;
+                clicked => { App.create-playlist(); }
+            }
+        }
+        for c[i] in App.grid-cards: CardTile {
+            property <int> k: i + (App.grid-create ? 1 : 0);
+            x: pad + mod(k, flick.cols) * (flick.size + 24px);
+            y: flick.top + floor(k / flick.cols) * (flick.size + 112px);
+            size: flick.size;
+            item: c;
+            clicked => { App.open-card("grid", i); }
+        }
+    }
+}

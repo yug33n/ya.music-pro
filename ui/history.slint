@@ -1,0 +1,209 @@
+// История прослушиваний: сверху вкладки дней, ниже по дням — откуда слушали и треки.
+
+import { Theme } from "theme.slint";
+import { Icons, Icon, Cover, Pic, Shimmer, NavCircle } from "widgets.slint";
+import { T, App, HistRow } from "state.slint";
+import { TrackRow, AlbumTrackRow } from "rows.slint";
+import { CarouselArrow } from "shelf.slint";
+
+// Выбранный день обведён синим, как Tab_selected у оригинала.
+component DayTab inherits Rectangle {
+    in property <string> text;
+    in property <bool> selected;
+    callback clicked;
+    height: 36px;
+    width: t.preferred-width + 34px;
+    border-radius: self.height / 2;
+    border-width: 1.6px;
+    border-color: selected ? Theme.controls-color-primary-outline-selected-stroke : transparent;
+    background: ta.has-hover ? Theme.controls-color-secondary-default-hovered : Theme.controls-color-secondary-default-enabled;
+    animate background { duration: App.motion ? 150ms : 0ms; }
+    t := Text {
+        text: root.text;
+        font-size: Theme.font-size-label-m;
+        font-weight: 700;
+        color: Theme.controls-color-primary-text-enabled-variant;
+    }
+    ta := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { root.clicked(); } }
+}
+
+// Откуда слушали: волна в цветном круге, альбом или плейлист с подписью сверху.
+component GroupHeader inherits Rectangle {
+    in property <HistRow> hr;
+    in property <length> pad;
+    callback open();
+    property <length> cy: hr.label != "" ? 30px : 0px;
+    if hr.label != "": Text {
+        x: root.pad;
+        y: 0;
+        height: 18px;
+        text: hr.label;
+        font-size: 13px;
+        font-weight: 500;
+        color: Theme.controls-color-primary-text-enabled;
+    }
+    if hr.round: Rectangle {
+        x: root.pad;
+        y: root.cy;
+        width: 58px;
+        height: 58px;
+        border-radius: 29px;
+        clip: true;
+        background: hr.bg;
+        Pic { width: parent.width; height: parent.height; source: hr.cover; }
+    }
+    if !hr.round: Cover { x: root.pad; y: root.cy; width: 58px; height: 58px; radius: Theme.radius-size-s; source: hr.cover; }
+    title := Text {
+        x: root.pad + 70px;
+        y: root.cy + 8px;
+        height: 22px;
+        text: hr.title;
+        font-family: "YS Music Headline";
+        font-size: 20px;
+        font-weight: 700;
+        color: Theme.controls-color-primary-text-enabled-variant;
+    }
+    if hr.arrow: Icon {
+        x: title.x + title.preferred-width + 4px;
+        y: root.cy + 7px;
+        source: Icons.arrow-right;
+        size: 24px;
+        colorize: Theme.controls-color-primary-text-enabled;
+    }
+    Text {
+        x: root.pad + 70px;
+        y: root.cy + 30px;
+        width: 450px;
+        text: hr.subtitle;
+        overflow: elide;
+        font-size: Theme.font-size-label-m;
+        font-weight: 500;
+        color: Theme.controls-color-primary-text-enabled;
+    }
+    TouchArea {
+        x: root.pad;
+        y: root.cy;
+        width: title.x - root.pad + title.preferred-width + (hr.arrow ? 28px : 0px);
+        height: 58px;
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.open(); }
+    }
+}
+
+export component HistoryPage inherits Rectangle {
+    property <length> pad: 25px;
+    // Прокрутка начинается под вкладками; первый день на 16px ниже.
+    property <length> top: 125px;
+    property <length> row-x: pad - 8px;
+
+    flick := Flickable {
+        y: root.top;
+        width: root.width;
+        height: root.height - root.top;
+        content-height: App.hist-height;
+        init => { App.hist-scrolled(-self.content-y, self.height); }
+        changed content-y => { App.hist-scrolled(-self.content-y, self.height); }
+        changed height => { App.hist-scrolled(-self.content-y, self.height); }
+        for k in App.hist-count: Rectangle {
+            property <int> idx: App.hist-first + k;
+            property <HistRow> r: App.hist-rows[idx];
+            init => { App.hist-cover(idx); }
+            changed idx => { App.hist-cover(idx); }
+            y: r.y;
+            width: root.width;
+            height: r.kind == 0 ? 26px : r.kind == 1 ? (r.label != "" ? 88px : 58px) : 56px;
+            if r.kind == 0: Text {
+                x: root.pad;
+                y: 0;
+                height: 26px;
+                text: r.title;
+                font-family: "YS Music Headline";
+                font-size: Theme.font-size-headline-m;
+                font-weight: 700;
+                color: Theme.controls-color-primary-text-enabled-variant;
+            }
+            if r.kind == 1: GroupHeader {
+                hr: r;
+                pad: root.pad;
+                open => { App.hist-open(idx); }
+            }
+            if r.kind == 2: TrackRow {
+                x: root.row-x;
+                width: parent.width - root.row-x - 33px;
+                item: r.item;
+                block: "history";
+                index: idx;
+                play => { App.hist-play(idx); }
+                like => { App.hist-like(idx); }
+            }
+            if r.kind == 3: AlbumTrackRow {
+                x: root.row-x;
+                width: parent.width - root.row-x - 33px;
+                item: r.item;
+                pos: r.pos;
+                block: "history";
+                index: idx;
+                play => { App.hist-play(idx); }
+                like => { App.hist-like(idx); }
+            }
+        }
+        if App.hist-loading: Rectangle {
+            y: 16px;
+            height: 10 * 56px;
+            Shimmer { x: root.pad; y: 0; width: 260px; height: 26px; border-radius: Theme.radius-size-s; }
+            for i in 8: Shimmer { x: root.pad; y: 52px + i * 56px; width: 40px; height: 40px; border-radius: Theme.radius-size-s; }
+        }
+    }
+
+    NavCircle {
+        x: root.pad;
+        y: 25px;
+        icon: Icons.arrow-left-small;
+        enabled: App.can-back;
+        clicked => { App.go-back(); }
+    }
+    Text {
+        x: root.pad + 48px;
+        y: 25px;
+        height: 32px;
+        vertical-alignment: center;
+        text: T.t("История");
+        font-family: "YS Music Headline";
+        font-size: 32px;
+        font-weight: 700;
+        color: Theme.controls-color-primary-text-enabled-variant;
+    }
+
+    tabs := Flickable {
+        x: root.pad;
+        y: 73px;
+        width: root.width - root.pad - (overflow ? 105px : root.pad);
+        height: 36px;
+        interactive: false;
+        content-width: strip.preferred-width;
+        property <bool> overflow: self.content-width > root.width - 2 * root.pad;
+        strip := HorizontalLayout {
+            spacing: 8px;
+            for t[k] in App.hist-tabs: DayTab {
+                text: t.title;
+                selected: k == App.hist-tab;
+                clicked => { flick.content-y = -min(max(0px, t.y - 16px), max(0px, App.hist-height - flick.height)); }
+            }
+        }
+    }
+    if tabs.overflow: HorizontalLayout {
+        x: root.width - root.pad - 72px;
+        y: 75px;
+        spacing: 10px;
+        CarouselArrow {
+            icon: Icons.arrow-left-small;
+            enabled: tabs.content-x < 0;
+            clicked => { tabs.content-x = min(0px, tabs.content-x + tabs.width * 0.8); }
+        }
+        CarouselArrow {
+            icon: Icons.arrow-right-small;
+            enabled: tabs.content-x > tabs.width - tabs.content-width;
+            clicked => { tabs.content-x = max(tabs.width - tabs.content-width, tabs.content-x - tabs.width * 0.8); }
+        }
+    }
+}

@@ -1,0 +1,179 @@
+// Поиск: вкладки «Популярное» и «История», результаты по типам.
+
+import { Theme } from "theme.slint";
+import { Icons, Icon, Cover, Shimmer, NavArrows, Field } from "widgets.slint";
+import { T, App, ChartRow } from "state.slint";
+import { TrackRow, BlockHeader, Tab, ChartLine } from "rows.slint";
+import { Shelf, CarouselArrow } from "shelf.slint";
+
+// Строка чарта: место и стрелка слева, дальше обычная строка трека.
+export component SearchPage inherits Rectangle {
+    property <length> pad: 25px;
+    property <bool> typing: App.search-text != "";
+    property <length> header-h: typing ? 92px : 172px;
+    property <length> col-w: (self.width - 2 * pad - 24px) / 2;
+
+    flick := Flickable {
+        y: 0;
+        height: root.height;
+        content-height: content.preferred-height + header-h;
+
+        content := VerticalLayout {
+            y: header-h;
+            padding-left: pad;
+            padding-right: pad;
+            padding-bottom: 40px;
+            spacing: 0;
+            alignment: start;
+
+            // Популярное
+            if !typing && App.search-tab == 0: VerticalLayout {
+                spacing: 0;
+                if App.search-loading: Rectangle {
+                    height: 300px;
+                    for i in 5: Shimmer {
+                        x: i * 202px;
+                        y: 44px;
+                        width: 186px;
+                        height: 186px;
+                        border-radius: Theme.radius-size-l;
+                    }
+                }
+                Shelf { title: T.t("Подборки музыки"); block: "search-mixes"; items: App.search-mixes; size: 186px; arrows: false; mix: true; }
+                Shelf { title: T.t("Вы могли пропустить"); block: "search-missed"; items: App.search-missed; size: 186px; arrows: false; }
+                Shelf { title: T.t("Больше новой музыки"); block: "search-newpl"; items: App.search-newpl; size: 186px; arrows: false; }
+                if App.search-chart.length > 0: Rectangle {
+                    height: 44px + 4 * 56px + 40px;
+                    BlockHeader { x: 0; y: 0; text: T.t("Чарт"); clicked => { App.open-card("chart", 0); } }
+                    for r[i] in App.search-chart: ChartLine {
+                        x: floor(i / 4) * (col-w + 24px);
+                        y: 44px + mod(i, 4) * 56px;
+                        width: col-w;
+                        visible: i < 8;
+                        line: r;
+                        index: i;
+                        play => { App.play-chart(i); }
+                        like => { App.like-chart(i); }
+                    }
+                }
+            }
+
+            // История
+            if !typing && App.search-tab == 1: VerticalLayout {
+                if App.search-history.length == 0: Text {
+                    text: T.t("Здесь появится то, что вы искали");
+                    font-size: Theme.font-size-label-m;
+                    font-weight: 500;
+                    color: Theme.controls-color-primary-text-enabled;
+                }
+                Shelf { title: T.t("История поиска"); block: "search-history"; items: App.search-history; size: 186px; arrows: false; }
+            }
+
+            // Результаты по запросу
+            if typing: VerticalLayout {
+                spacing: 0;
+                if App.results-loading: Rectangle {
+                    height: 4 * 56px;
+                    for i in 8: Shimmer {
+                        x: floor(i / 4) * (col-w + 24px);
+                        y: mod(i, 4) * 56px + 8px;
+                        width: 40px;
+                        height: 40px;
+                        border-radius: Theme.radius-size-s;
+                    }
+                }
+                if !App.results-loading && App.sr-tracks.length == 0 && App.sr-artists.length == 0 && App.sr-albums.length == 0: Text {
+                    text: T.t("Ничего не нашлось");
+                    font-family: "YS Music Headline";
+                    font-size: Theme.font-size-headline-s;
+                    font-weight: 700;
+                    color: Theme.controls-color-primary-text-enabled-variant;
+                }
+                if App.sr-tracks.length > 0: Rectangle {
+                    height: 44px + min(4, ceil(App.sr-tracks.length / 2)) * 56px + 40px;
+                    BlockHeader { x: 0; y: 0; text: T.t("Треки"); }
+                    for t[i] in App.sr-tracks: TrackRow {
+                        x: floor(i / 4) * (col-w + 24px);
+                        y: 44px + mod(i, 4) * 56px;
+                        width: col-w;
+                        visible: i < 8;
+                        item: t;
+                        block: "results";
+                        index: i;
+                        play => { App.play-result(i); }
+                        like => { App.like-result(i); }
+                    }
+                }
+                Shelf { title: T.t("Исполнители"); block: "sr-artists"; items: App.sr-artists; size: 186px; arrows: false; }
+                Shelf { title: T.t("Альбомы"); block: "sr-albums"; items: App.sr-albums; size: 186px; arrows: false; }
+                Shelf { title: T.t("Плейлисты"); block: "sr-playlists"; items: App.sr-playlists; size: 186px; arrows: false; }
+            }
+        }
+    }
+
+    // Шапка: поле поиска и вкладки. Остаётся на месте при прокрутке.
+    Rectangle {
+        y: 0;
+        height: header-h - 24px;
+        background: Theme.background-color-primary-enabled-content;
+
+        NavArrows {
+            x: pad;
+            y: 29px;
+        }
+
+        field-box := Rectangle {
+            x: pad + 80px - 1px;
+            y: 24px;
+            width: parent.width - 2 * pad - 80px + 2px;
+            height: 42px;
+            border-radius: 21px;
+            background: Theme.background-color-primary-enabled-content;
+            border-width: 1px;
+            border-color: field.has-focus ? #a259ff : Theme.controls-color-secondary-outline-enabled-stroke;
+            drop-shadow-blur: field.has-focus ? 12px : 0px;
+            drop-shadow-color: #a259ff40;
+            Icon { x: 12px; source: Icons.search; size: 24px; colorize: Theme.controls-color-primary-text-enabled-variant; }
+            if App.search-text == "": Text {
+                x: 48px;
+                text: T.t("Что вы чувствуете или ищете?");
+                font-size: Theme.font-size-label-m;
+                font-weight: 500;
+                color: Theme.controls-color-primary-text-enabled;
+            }
+            field := Field {
+                x: 48px;
+                width: parent.width - 96px;
+                text <=> App.search-text;
+                font-size: Theme.font-size-label-m;
+                font-weight: 500;
+                color: Theme.controls-color-primary-text-enabled-variant;
+                vertical-alignment: center;
+                edited => { App.search-edited(self.text); }
+            }
+            if App.search-text != "": Rectangle {
+                x: parent.width - 40px;
+                width: 32px;
+                height: 32px;
+                Icon { source: Icons.close-small; size: 20px; colorize: Theme.controls-color-primary-text-enabled; }
+                TouchArea {
+                    mouse-cursor: MouseCursor.pointer;
+                    clicked => {
+                        App.search-text = "";
+                        App.search-edited("");
+                    }
+                }
+            }
+        }
+
+        if !typing: HorizontalLayout {
+            x: pad;
+            y: 104px;
+            height: 36px;
+            spacing: 8px;
+            alignment: start;
+            Tab { text: T.t("Популярное"); selected: App.search-tab == 0; clicked => { App.search-tab = 0; } }
+            Tab { text: T.t("История"); selected: App.search-tab == 1; clicked => { App.search-tab = 1; } }
+        }
+    }
+}

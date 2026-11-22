@@ -1,0 +1,202 @@
+// Карточки и горизонтальные полки с прокруткой стрелками.
+
+import { Theme } from "theme.slint";
+import { Icons, Icon, Cover, Pic, ExplicitMark } from "widgets.slint";
+import { App, CardItem } from "state.slint";
+import { BlockHeader } from "rows.slint";
+
+// Карточка альбома, плейлиста, исполнителя или подборки: обложка, подписи 13/500.
+export component CardTile inherits Rectangle {
+    in property <CardItem> item;
+    in property <length> size: 191px;
+    in property <bool> mix;
+    callback clicked;
+    width: size;
+    height: mix ? size + 32px : size + 8px + 18px + (item.subtitle != "" ? 18px : 0) + (item.year != "" || item.likes != "" ? 18px : 0);
+
+    // Подборка: три обложки стопкой, верхняя — главная, подпись крупно по центру.
+    if mix: Rectangle {
+        y: 0;
+        height: size;
+        Rectangle {
+            x: size * 0.22;
+            y: size * 0.04;
+            width: size * 0.56;
+            height: size * 0.3;
+            border-radius: Theme.radius-size-s;
+            clip: true;
+            Pic { width: parent.width; height: parent.width; y: 0; source: item.cover3; opacity: 0.5; }
+        }
+        Cover {
+            x: size * 0.19;
+            y: size * 0.1;
+            width: size * 0.62;
+            height: size * 0.62;
+            radius: Theme.radius-size-s;
+            source: item.cover;
+        }
+        Text {
+            y: size * 0.74;
+            width: parent.width;
+            horizontal-alignment: center;
+            text: item.title;
+            overflow: elide;
+            font-family: "YS Music Headline";
+            font-size: Theme.font-size-headline-xs;
+            font-weight: 700;
+            color: Theme.controls-color-primary-text-enabled-variant;
+        }
+    }
+
+    if !mix: Cover {
+        y: 0;
+        width: size;
+        height: size;
+        round: item.round;
+        radius: Theme.radius-size-l;
+        source: item.cover;
+        if ta.has-hover: Rectangle {
+            background: #00000033;
+            Rectangle {
+                x: item.round ? (parent.width - 48px) / 2 : 12px;
+                y: parent.height - 48px - 12px;
+                width: 48px;
+                height: 48px;
+                border-radius: 24px;
+                background: play-ta.has-hover ? #ffffff3d : #ffffff29;
+                animate background { duration: App.motion ? 150ms : 0ms; }
+                Icon { source: Icons.play-filled; size: 48px; colorize: #e6e6e6; }
+                play-ta := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { root.clicked(); } }
+            }
+        }
+    }
+    if !mix: HorizontalLayout {
+        y: size + 8px;
+        width: size;
+        height: 18px;
+        alignment: item.round ? center : start;
+        spacing: 4px;
+        Text {
+            text: item.title;
+            overflow: elide;
+            horizontal-stretch: 1;
+            horizontal-alignment: item.round ? center : left;
+            font-size: Theme.font-size-label-s;
+            font-weight: 500;
+            color: Theme.controls-color-primary-text-enabled-variant;
+            if title-ta.has-hover: Rectangle {
+                x: item.round ? (parent.width - min(parent.width, parent.preferred-width)) / 2 : 0;
+                y: (parent.height + parent.font-size) / 2 + 1px;
+                width: min(parent.width, parent.preferred-width);
+                height: 1px;
+                background: parent.color;
+            }
+            title-ta := TouchArea {
+                mouse-cursor: MouseCursor.pointer;
+                clicked => { root.clicked(); }
+            }
+        }
+        if item.explicit: ExplicitMark { y: -1px; }
+    }
+    if !mix && item.subtitle != "": Text {
+        y: size + 27px;
+        width: size;
+        text: item.subtitle;
+        overflow: elide;
+        font-size: Theme.font-size-label-s;
+        font-weight: 500;
+        color: Theme.controls-color-primary-text-enabled;
+    }
+    if !mix && item.year != "": Text {
+        y: size + (item.subtitle != "" ? 43px : 27px);
+        width: size;
+        text: item.year;
+        font-size: Theme.font-size-label-s;
+        font-weight: 500;
+        color: Theme.controls-color-primary-text-enabled;
+    }
+    if !mix && item.likes != "": HorizontalLayout {
+        y: size + (item.subtitle != "" ? 43px : 27px);
+        height: 18px;
+        spacing: 2px;
+        alignment: start;
+        Icon { source: Icons.like-small; size: 14px; y: 2px; colorize: Theme.controls-color-primary-text-enabled; }
+        Text {
+            text: item.likes;
+            vertical-alignment: center;
+            font-size: Theme.font-size-label-s;
+            font-weight: 500;
+            color: Theme.controls-color-primary-text-enabled;
+        }
+    }
+    ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component CarouselArrow inherits Rectangle {
+    in property <image> icon;
+    in property <bool> enabled;
+    callback clicked;
+    width: 31px;
+    height: 31px;
+    border-radius: self.width / 2;
+    border-width: 1.6px;
+    border-color: enabled ? Theme.controls-color-secondary-outline-enabled-stroke : Theme.controls-color-secondary-outline-disabled-stroke;
+    Icon { source: icon; size: 20px; colorize: enabled ? Theme.controls-color-primary-text-enabled-variant : Theme.controls-color-secondary-on-outline-disabled; }
+    TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// Блок с заголовком и лентой карточек, листается стрелками справа.
+export component Shelf inherits Rectangle {
+    in property <string> title;
+    in property <string> block;
+    in property <[CardItem]> items;
+    in property <length> size: 191px;
+    in property <length> gap: 16px;
+    in property <bool> mix;
+    in property <bool> arrows: true;
+    property <int> fit: max(1, floor((self.width + gap) / (size + gap)));
+    in-out property <int> first: 0;
+    property <length> card-h: mix ? size + 32px : size + 62px;
+    height: items.length == 0 ? 0 : 42px + card-h + 40px;
+    visible: items.length > 0;
+    clip: true;
+
+    BlockHeader { x: 0; y: 0; text: root.title; clicked => { App.open-grid(root.block, root.title); } }
+    if arrows && items.length > fit: HorizontalLayout {
+        x: parent.width - 72px;
+        y: 0;
+        spacing: 10px;
+        CarouselArrow {
+            icon: Icons.arrow-left-small;
+            enabled: root.first > 0;
+            clicked => { root.first = max(0, root.first - root.fit); }
+        }
+        CarouselArrow {
+            icon: Icons.arrow-right-small;
+            enabled: root.first + root.fit < root.items.length;
+            clicked => { root.first = min(root.items.length - root.fit, root.first + root.fit); }
+        }
+    }
+    row := Rectangle {
+        y: 44px;
+        height: card-h;
+        property <length> shift: -root.first * (root.size + root.gap);
+        animate shift { duration: App.motion ? 300ms : 0ms; easing: ease-out; }
+        for c[i] in root.items: CardTile {
+            x: row.shift + i * (root.size + root.gap);
+            y: 0;
+            size: root.size;
+            mix: root.mix;
+            item: c;
+            visible: self.x + self.width > -1px && self.x < root.width + 1px;
+            clicked => { App.open-card(root.block, i); }
+        }
+    }
+}

@@ -1,0 +1,1244 @@
+// Лендинги по скелету сервера: «Для вас и Тренды», «Концерты», «Книги и подкасты», «Чарт».
+
+import { Theme } from "theme.slint";
+import { Icons, Icon, Cover, Pic, Shimmer, ExplicitMark, NavCircle } from "widgets.slint";
+import { T, App, LBlock, LCard, LTab, ChartRow, TrackItem } from "state.slint";
+import { TrackRow, ChartLine } from "rows.slint";
+import { CarouselArrow } from "shelf.slint";
+
+// Заголовок блока: 24/26, стрелка «Смотреть всё», описание 14/20, обложка 58 слева (Премьера).
+component LHeader inherits Rectangle {
+    in property <LBlock> block;
+    in property <int> index;
+    in property <bool> arrows;
+    in property <bool> can-back;
+    in property <bool> can-forward;
+    callback back();
+    callback forward();
+    property <bool> has-cover: block.cover.width > 0 && (block.kind == "SMART_OPEN_PLAYLIST" || block.kind == "OPEN_PLAYLIST" || block.kind == "NON_MUSIC_OPEN_PLAYLIST");
+    property <length> tx: has-cover ? 70px : 0px;
+    height: has-cover ? 58px : block.desc != "" ? 46px : 26px;
+    if has-cover: Cover {
+        x: 0;
+        y: 0;
+        width: 58px;
+        height: 58px;
+        radius: Theme.radius-size-s;
+        source: block.cover;
+    }
+    title := Text {
+        x: tx;
+        y: has-cover ? 6px : 0px;
+        height: 26px;
+        text: block.title;
+        font-family: "YS Music Headline";
+        font-size: Theme.font-size-headline-m;
+        font-weight: 700;
+        color: Theme.controls-color-primary-text-enabled-variant;
+    }
+    if block.more: Icon {
+        x: tx + title.preferred-width + 4px;
+        y: title.y + 1px;
+        source: Icons.arrow-right;
+        size: 24px;
+        colorize: Theme.controls-color-primary-text-enabled;
+    }
+    if block.title != "": TouchArea {
+        x: 0;
+        y: 0;
+        width: tx + title.preferred-width + (block.more ? 28px : 0px);
+        height: root.height;
+        enabled: block.more;
+        mouse-cursor: block.more ? MouseCursor.pointer : MouseCursor.default;
+        clicked => { App.landing-header(root.index); }
+    }
+    if block.desc != "": Text {
+        x: tx;
+        y: title.y + 26px;
+        width: min(461px, root.width - tx);
+        text: block.desc;
+        overflow: elide;
+        font-size: Theme.font-size-label-m;
+        font-weight: 500;
+        color: Theme.controls-color-primary-text-enabled;
+    }
+    if arrows && App.landing-hover == root.index: HorizontalLayout {
+        x: root.width - 72px;
+        y: has-cover ? 4px : -2px;
+        height: 31px;
+        spacing: 10px;
+        CarouselArrow { icon: Icons.arrow-left-small; enabled: root.can-back; clicked => { root.back(); } }
+        CarouselArrow { icon: Icons.arrow-right-small; enabled: root.can-forward; clicked => { root.forward(); } }
+    }
+    if block.can-hide && App.landing-hover == root.index: CarouselArrow {
+        x: root.width - (arrows ? 72px + 41px : 31px);
+        y: has-cover ? 4px : -2px;
+        icon: Icons.close-small;
+        enabled: true;
+        clicked => { App.landing-hide(root.index); }
+    }
+}
+
+// Вкладка-«таблетка» с обложками: большая у страницы (54), маленькая у блока «В стиле» (44).
+export component LPill inherits Rectangle {
+    in property <string> text;
+    in property <string> subtitle;
+    in property <image> cover;
+    in property <image> cover2;
+    in property <bool> selected;
+    in property <length> h: 44px;
+    callback clicked;
+    property <length> cs: subtitle != "" ? 36px : 32px;
+    property <length> pad: cover.width > 0 ? (subtitle != "" ? 16px : 6px) : 16px;
+    property <length> covers-w: cover.width > 0 ? (cover2.width > 0 ? cs + 26px : cs) + 8px : 0px;
+    height: h;
+    width: pad + covers-w + max(t1.preferred-width, t2.preferred-width) + 16px;
+    border-radius: h / 2;
+    background: selected ? Theme.controls-color-secondary-default-enabled : ta.has-hover ? Theme.controls-color-secondary-default-disabled : transparent;
+    animate background { duration: App.motion ? 150ms : 0ms; }
+    if cover.width > 0: Cover { x: pad; y: (root.h - root.cs) / 2; width: root.cs; height: root.cs; round: true; source: root.cover; }
+    if cover2.width > 0: Cover { x: pad + 26px; y: (root.h - root.cs) / 2; width: root.cs; height: root.cs; round: true; source: root.cover2; }
+    t1 := Text {
+        x: pad + covers-w;
+        y: subtitle != "" ? 8px : (root.h - 20px) / 2;
+        height: 20px;
+        text: root.text;
+        font-size: Theme.font-size-label-m;
+        font-weight: 700;
+        color: Theme.controls-color-primary-text-enabled-variant;
+    }
+    t2 := Text {
+        x: pad + covers-w;
+        y: 28px;
+        visible: root.subtitle != "";
+        text: root.subtitle;
+        font-size: Theme.font-size-label-s;
+        font-weight: 500;
+        color: Theme.controls-color-primary-text-enabled;
+    }
+    ta := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { root.clicked(); } }
+}
+
+// Карточка альбома, плейлиста или исполнителя: обложка, название в две строки, подписи и лайки.
+component LTile inherits Rectangle {
+    in property <LCard> card;
+    in property <length> size: 191px;
+    in property <bool> chart;
+    callback open;
+    callback play;
+    width: size;
+    height: size + 8px + 36px + 40px;
+    Cover {
+        y: 0;
+        width: root.size;
+        height: root.size;
+        round: card.round;
+        radius: Theme.radius-size-l;
+        source: card.cover;
+        if ta.has-hover: Rectangle {
+            background: #00000033;
+            Rectangle {
+                x: card.round ? (parent.width - 48px) / 2 : 12px;
+                y: parent.height - 60px;
+                width: 48px;
+                height: 48px;
+                border-radius: 24px;
+                background: play-ta.has-hover ? #ffffff3d : #ffffff29;
+                Icon { source: Icons.play-filled; size: 48px; colorize: #ffffff; }
+                play-ta := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { root.play(); } }
+            }
+        }
+    }
+    // Чарт книг: место и движение слева от названия.
+    if chart: Text {
+        x: 8px;
+        y: root.size + 7px;
+        width: 12px;
+        horizontal-alignment: center;
+        text: card.pos;
+        font-size: Theme.font-size-label-m;
+        font-weight: 400;
+        color: Theme.controls-color-primary-text-enabled;
+    }
+    if chart: Icon {
+        x: 2px;
+        y: root.size + 31px;
+        size: 20px;
+        source: card.trend == 2 ? Icons.chart-up : card.trend == 3 ? Icons.chart-down : card.trend == 4 ? Icons.chart-new : Icons.chart-same;
+        colorize: card.trend == 2 ? Theme.message-color-successful-text-enabled : card.trend == 3 ? Theme.message-color-error-text-enabled : card.trend == 4 ? Theme.controls-color-primary-default-enabled : Theme.controls-color-primary-text-enabled;
+    }
+    property <length> tx: chart ? 32px : 0px;
+    title := Text {
+        x: tx;
+        y: root.size + 8px;
+        width: root.size - tx - (card.explicit ? 22px : 0px);
+        text: card.title;
+        wrap: word-wrap;
+        overflow: elide;
+        // Без layout max-height не ограничивает текст: высоту задаём сами, лишние строки уходят в многоточие.
+        height: min(36px, self.preferred-height);
+        horizontal-alignment: card.round ? center : left;
+        font-size: Theme.font-size-label-s;
+        font-weight: 500;
+        color: Theme.controls-color-primary-text-enabled-variant;
+    }
+    if card.explicit: ExplicitMark { x: root.size - 18px; y: root.size + 7px; }
+    property <length> after: root.size + 8px + title.height;
+    sub := Text {
+        visible: card.subtitle != "";
+        x: tx;
+        y: after;
+        width: root.size - tx;
+        text: card.subtitle;
+        wrap: word-wrap;
+        overflow: elide;
+        height: card.subtitle == "" ? 0 : min(card.round || title.height > 18px ? 18px : 36px, self.preferred-height);
+        font-size: Theme.font-size-label-s;
+        font-weight: 500;
+        color: Theme.controls-color-primary-text-enabled;
+    }
+    property <length> after2: after + sub.height;
+    if card.sub2 != "": Text {
+        x: tx;
+        y: after2;
+        width: root.size - tx;
+        text: card.sub2;
+        overflow: elide;
+        font-size: Theme.font-size-label-s;
+        font-weight: 500;
+        color: Theme.controls-color-primary-text-enabled;
+    }
+    if card.likes != "": HorizontalLayout {
+        x: tx;
+        y: after2 + (card.sub2 != "" ? 18px : 0px);
+        height: 20px;
+        spacing: 0px;
+        alignment: start;
+        Icon { y: -1px; source: Icons.like-variant; size: 20px; colorize: Theme.controls-color-primary-text-enabled; }
+        Text {
+            text: card.likes;
+            vertical-alignment: center;
+            font-size: Theme.font-size-label-s;
+            font-weight: 500;
+            color: Theme.controls-color-primary-text-enabled;
+        }
+    }
+    ta := TouchArea {
+        y: 0;
+        height: root.size;
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.open(); }
+    }
+    TouchArea {
+        y: root.size;
+        height: root.height - root.size;
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.open(); }
+    }
+}
+
+// Лента карточек со стрелками: общая для всех каруселей.
+component Strip inherits Rectangle {
+    in property <int> count;
+    in property <length> step;
+    in property <length> item-w;
+    in-out property <int> first: 0;
+    out property <int> fit: max(1, floor((self.width - item-w) / step) + 1);
+    out property <bool> can-back: first > 0;
+    out property <bool> can-forward: first + fit < count;
+    out property <length> shift: -first * step;
+    public function back() { first = max(0, first - fit); }
+    public function forward() { first = min(max(0, count - fit), first + fit); }
+}
+
+// Сетка «Мне нравится» и «История» над блоками «Для вас».
+component LikesHistory inherits Rectangle {
+    in property <LBlock> block;
+    in property <int> index;
+    property <length> w: (self.width - 16px) / 2 - 8px;
+    height: 82px;
+    for c[i] in block.cards: Rectangle {
+        x: i * (root.w + 16px);
+        width: root.w;
+        height: 82px;
+        border-radius: 12px;
+        background: ta.has-hover ? Theme.controls-color-secondary-default-hovered : Theme.controls-color-secondary-default-enabled;
+        animate background { duration: App.motion ? 150ms : 0ms; }
+        if c.cover.width > 0: Cover { x: 12px; y: 12px; width: 58px; height: 58px; radius: Theme.radius-size-s; source: c.cover; }
+        if c.cover.width == 0: Rectangle {
+            x: 12px;
+            y: 12px;
+            width: 58px;
+            height: 58px;
+            border-radius: 8px;
+            background: Theme.controls-color-secondary-default-enabled;
+            Icon { source: Icons.history-m; size: 32px; colorize: Theme.controls-color-primary-text-enabled-variant; }
+        }
+        t := Text {
+            x: 82px;
+            y: 18px;
+            text: c.title;
+            font-family: "YS Music Headline";
+            font-size: Theme.font-size-headline-m;
+            font-weight: 700;
+            color: Theme.controls-color-primary-text-enabled-variant;
+        }
+        Icon { x: 82px + t.preferred-width + 4px; y: 19px; source: Icons.arrow-right; size: 24px; colorize: Theme.controls-color-primary-text-enabled; }
+        Text {
+            x: 82px;
+            y: 44px;
+            width: parent.width - 82px - 90px;
+            text: c.subtitle;
+            overflow: elide;
+            font-size: Theme.font-size-label-m;
+            font-weight: 500;
+            color: Theme.controls-color-primary-text-enabled;
+        }
+        if c.cover3.width > 0: Cover { x: parent.width - 70px; y: 22px; width: 48px; height: 48px; radius: Theme.radius-size-s; source: c.cover3; }
+        if c.cover2.width > 0: Cover { x: parent.width - 60px; y: 12px; width: 48px; height: 48px; radius: Theme.radius-size-s; source: c.cover2; }
+        ta := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { App.landing-open(root.index, i); } }
+    }
+}
+
+// «Артист рекомендует»: большая карточка с фото исполнителя, обложкой и «Слушать».
+component AlbumPromo inherits Rectangle {
+    in property <LBlock> block;
+    in property <int> index;
+    property <length> w: (self.width - 32px) / 3;
+    strip := Strip { count: block.cards.length; step: root.w + 16px; item-w: root.w; width: root.width; }
+    hdr := LHeader { x: 0; y: 0; width: root.width; block: root.block; index: root.index; arrows: block.cards.length > 3; can-back: strip.can-back; can-forward: strip.can-forward; back => { strip.back(); } forward => { strip.forward(); } }
+    height: 26px + 19px + 214px + 48px;
+    Rectangle {
+        y: 45px;
+        height: 214px + 48px;
+        clip: true;
+        for c[i] in block.cards: Rectangle {
+            x: strip.shift + i * (root.w + 16px);
+            width: root.w;
+            Rectangle {
+                y: 0;
+                height: 214px;
+                border-radius: Theme.radius-size-l;
+                clip: true;
+                background: c.bg;
+                Pic { width: parent.width; height: parent.height; source: c.cover2; }
+                Cover { x: 12px; y: 122px; width: 80px; height: 80px; radius: Theme.radius-size-s; source: c.cover; }
+                Rectangle {
+                    x: parent.width - 134px;
+                    y: 154px;
+                    width: 122px;
+                    height: 48px;
+                    border-radius: 24px;
+                    background: #ffffff;
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 4px;
+                        Icon { y: 14px; source: Icons.play-xxs; size: 20px; colorize: #000000; }
+                        Text { vertical-alignment: center; text: T.t("Слушать"); font-size: Theme.font-size-label-m; font-weight: 500; color: #000000; }
+                    }
+                    TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { App.landing-play(root.index, i); } }
+                }
+            }
+            HorizontalLayout {
+                y: 223px;
+                height: 15px;
+                spacing: 4px;
+                alignment: start;
+                Text { text: c.title; overflow: elide; font-size: Theme.font-size-label-s; font-weight: 500; color: Theme.controls-color-primary-text-enabled-variant; }
+                if c.explicit: ExplicitMark { y: -2px; }
+            }
+            Text { x: 0; y: 241px; width: parent.width; text: c.subtitle; overflow: elide; font-size: Theme.font-size-label-s; font-weight: 500; color: Theme.controls-color-primary-text-enabled; }
+            TouchArea { y: 0; height: 214px; mouse-cursor: MouseCursor.pointer; clicked => { App.landing-open(root.index, i); } }
+        }
+    }
+}
+
+// Плашка релиза 80 px: обложка 64, название, «сингл • 30 октября», «!» и кнопка игры.
+component ReleaseCard inherits Rectangle {
+    in property <LCard> card;
+    callback open;
+    callback play;
+    height: 80px;
+    border-radius: 12px;
+    // Градиент и обложка не меняются при прокрутке: рисуются один раз в кэш, дальше копируются.
+    cache-rendering-hint: App.motion;
+    // radial-gradient(circle at 50% -200%) оригинала: на высоте плашки это почти вертикальный переход.
+    background: @linear-gradient(180deg, card.bg.mix(card.bg2, 0.6) 0%, card.bg.mix(card.bg2, 0.91) 100%);
+    Cover { x: 8px; y: 8px; width: 64px; height: 64px; radius: 6px; source: card.cover; }
+    title := Text {
+        x: 80px;
+        y: self.preferred-height > 20px ? 13px : 22px;
+        width: parent.width - 80px - (card.explicit ? 92px : 68px);
+        text: card.title;
+        wrap: word-wrap;
+        overflow: elide;
+        height: min(36px, self.preferred-height);
+        font-size: Theme.font-size-label-m;
+        font-weight: 500;
+        color: #e6e6e6;
+    }
+    Text {
+        x: 80px;
+        y: title.y + min(36px, title.preferred-height);
+        width: title.width;
+        text: card.sub2;
+        overflow: elide;
+        font-size: Theme.font-size-label-s;
+        font-weight: 500;
+        color: #ffffff80;
+    }
+    TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { root.open(); } }
+    if card.explicit: ExplicitMark { x: parent.width - 94px; y: 31px; ink: #e6e6e6; }
+    Rectangle {
+        x: parent.width - 44px;
+        y: 24px;
+        width: 32px;
+        height: 32px;
+        border-radius: 16px;
+        background: pta.has-hover ? #ffffff3d : #00000012;
+        Icon { source: Icons.play-filled-m; size: 32px; colorize: #ffffff; }
+        pta := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { root.play(); } }
+    }
+}
+
+component SimplePromo inherits Rectangle {
+    in property <LBlock> block;
+    in property <int> index;
+    property <length> w: (self.width - 32px) / 3;
+    strip := Strip { count: block.cards.length; step: root.w + 16px; item-w: root.w; width: root.width; }
+    LHeader { x: 0; y: 0; width: root.width; block: root.block; index: root.index; arrows: block.cards.length > 3; can-back: strip.can-back; can-forward: strip.can-forward; back => { strip.back(); } forward => { strip.forward(); } }
+    height: 45px + 80px;
+    Rectangle {
+        y: 45px;
+        height: 80px;
+        clip: true;
+        for c[i] in block.cards: ReleaseCard {
+            x: strip.shift + i * (root.w + 16px);
+            width: root.w;
+            card: c;
+            open => { App.landing-open(root.index, i); }
+            play => { App.landing-play(root.index, i); }
+        }
+    }
+}
+
+// Новые релизы: исполнитель в круге 282, его имя крупно, под кругом плашка релиза 340×80.
+component NewReleases inherits Rectangle {
+    in property <LBlock> block;
+    in property <int> index;
+    strip := Strip { count: block.cards.length; step: 356px; item-w: 340px; width: root.width; }
+    LHeader { x: 0; y: 0; width: root.width; block: root.block; index: root.index; arrows: block.cards.length > strip.fit; can-back: strip.can-back; can-forward: strip.can-forward; back => { strip.back(); } forward => { strip.forward(); } }
+    height: 48px + 298px;
+    Rectangle {
+        y: 48px;
+        height: 298px;
+        clip: true;
+        for c[i] in block.cards: Rectangle {
+            x: strip.shift + i * 356px;
+            width: 340px;
+            Rectangle {
+                x: 29px;
+                y: 0;
+                width: 282px;
+                height: 282px;
+                border-radius: 141px;
+                clip: true;
+                background: c.bg;
+                cache-rendering-hint: App.motion;
+                Pic { width: parent.width; height: parent.height; source: c.cover2; }
+                Rectangle { background: @linear-gradient(180deg, c.bg.with-alpha(0) 31%, c.bg.with-alpha(0.4) 70%); }
+                Text {
+                    x: 28px;
+                    y: 183px;
+                    width: 226px;
+                    horizontal-alignment: center;
+                    text: c.subtitle;
+                    wrap: word-wrap;
+                    font-family: "YS Music Headline";
+                    font-size: Theme.font-size-headline-m;
+                    font-weight: 700;
+                    color: #e6e6e6;
+                }
+                TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { App.landing-open(root.index, i); } }
+            }
+            ReleaseCard {
+                y: 218px;
+                width: 340px;
+                card: c;
+                open => { App.landing-open(root.index, i); }
+                play => { App.landing-play(root.index, i); }
+            }
+        }
+    }
+}
+
+// Кнопка вайба 321×64: цвет, картинка с прозрачностью, подпись сверху и название с ▶.
+component VibeButton inherits Rectangle {
+    in property <LCard> card;
+    in property <bool> neuro;
+    callback clicked;
+    height: 64px;
+    border-radius: 16px;
+    clip: true;
+    background: card.bg;
+    border-width: neuro ? 1px : 0px;
+    border-color: #0000001a;
+    if card.cover.width > 0: Pic { width: parent.width; height: parent.height; source: card.cover; opacity: 0.5; }
+    if ta.has-hover: Rectangle { background: #ffffff14; }
+    if card.extra != "": Text {
+        y: 12px;
+        width: parent.width;
+        horizontal-alignment: center;
+        text: card.extra;
+        overflow: elide;
+        font-size: Theme.font-size-label-s;
+        font-weight: 700;
+        color: card.fg;
+    }
+    HorizontalLayout {
+        y: neuro ? 22px : 30px;
+        height: 20px;
+        alignment: center;
+        spacing: 4px;
+        Icon { source: Icons.play-xxs; size: 20px; colorize: #ffffff; }
+        Text {
+            vertical-alignment: center;
+            text: card.title;
+            font-size: 20px;
+            font-weight: 700;
+            color: neuro ? card.fg : #ffffff;
+        }
+    }
+    ta := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { root.clicked(); } }
+}
+
+component VibeSets inherits Rectangle {
+    in property <LBlock> block;
+    in property <int> index;
+    property <length> w: (self.width - 32px) / 3;
+    property <[LCard]> cards: block.cards;
+    strip := Strip { count: cards.length; step: root.w + 16px; item-w: root.w; width: root.width; }
+    LHeader { x: 0; y: 0; width: root.width; block: root.block; index: root.index; arrows: cards.length > 3; can-back: strip.can-back; can-forward: strip.can-forward; back => { strip.back(); } forward => { strip.forward(); } }
+    height: 97px + 64px;
+    HorizontalLayout {
+        y: 37px;
+        height: 44px;
+        spacing: 8px;
+        alignment: start;
+        for t[k] in block.tabs: LPill {
+            text: t.title;
+            selected: k == block.tab;
+            clicked => { strip.first = 0; App.landing-subtab(root.index, k); }
+        }
+    }
+    Rectangle {
+        y: 97px;
+        height: 64px;
+        clip: true;
+        for c[i] in cards: VibeButton {
+            x: strip.shift + i * (root.w + 16px);
+            width: root.w;
+            card: c;
+            clicked => { App.landing-play(root.index, i); }
+        }
+    }
+}
+
+component Neuro inherits Rectangle {
+    in property <LBlock> block;
+    in property <int> index;
+    property <length> w: (self.width - 32px) / 3;
+    LHeader { x: 0; y: 0; width: root.width; block: root.block; index: root.index; }
+    height: 62px + 64px;
+    for c[i] in block.cards: VibeButton {
+        x: i * (root.w + 16px);
+        y: 62px;
+        width: root.w;
+        card: c;
+        neuro: true;
+        clicked => { App.landing-play(root.index, i); }
+    }
+}
+
+// Лента карточек: плейлисты, альбомы, исполнители, книги.
+component Cards inherits Rectangle {
+    in property <LBlock> block;
+    in property <int> index;
+    in property <length> size: 191px;
+    in property <length> gap: 16px;
+    in property <bool> chart;
+    in property <bool> with-tabs;
+    property <length> top: (block.desc != "" ? 62px : 45px) + (with-tabs ? 60px : 0px);
+    strip := Strip { count: block.cards.length; step: root.size + root.gap; item-w: root.size; width: root.width; }
+    LHeader { x: 0; y: 0; width: root.width; block: root.block; index: root.index; arrows: block.cards.length > strip.fit; can-back: strip.can-back; can-forward: strip.can-forward; back => { strip.back(); } forward => { strip.forward(); } }
+    if with-tabs: HorizontalLayout {
+        y: 37px;
+        height: 44px;
+        spacing: 8px;
+        alignment: start;
+        for t[k] in block.tabs: LPill {
+            text: t.title;
+            cover: t.cover;
+            selected: k == block.tab;
+            clicked => { strip.first = 0; App.landing-subtab(root.index, k); }
+        }
+    }
+    height: top + size + 8px + 36px + 20px + (block.kind == "IN_STYLE" ? 18px : 0px);
+    Rectangle {
+        y: root.top;
+        height: root.height - root.top;
+        clip: true;
+        for c[i] in block.cards: LTile {
+            x: strip.shift + i * (root.size + root.gap);
+            y: 0;
+            size: root.size;
+            card: c;
+            chart: root.chart;
+            visible: self.x + self.width > -1px && self.x < root.width + 1px;
+            open => { App.landing-open(root.index, i); }
+            play => { App.landing-play(root.index, i); }
+        }
+    }
+}
+
+// Подборки: стопка обложек 115 и подпись 20/700 по центру.
+component Mixes inherits Rectangle {
+    in property <LBlock> block;
+    in property <int> index;
+    strip := Strip { count: block.cards.length; step: 207px; item-w: 191px; width: root.width; }
+    LHeader { x: 0; y: 0; width: root.width; block: root.block; index: root.index; arrows: block.cards.length > strip.fit; can-back: strip.can-back; can-forward: strip.can-forward; back => { strip.back(); } forward => { strip.forward(); } }
+    height: 45px + 18px + 115px + 8px + 48px;
+    Rectangle {
+        y: 45px;
+        height: root.height - 45px;
+        clip: true;
+        for c[i] in block.cards: Rectangle {
+            x: strip.shift + i * 207px;
+            width: 191px;
+            Rectangle {
+                x: 46px;
+                y: 10px;
+                width: 99px;
+                height: 8px;
+                border-radius: 4px;
+                clip: true;
+                background: c.bg;
+                if c.cover2.width > 0: Pic { width: parent.width; height: 99px; source: c.cover2; opacity: 0.5; }
+            }
+            Cover { x: 38px; y: 18px; width: 115px; height: 115px; radius: 6px; source: c.cover; }
+            Text {
+                y: 141px;
+                width: parent.width;
+                horizontal-alignment: center;
+                text: c.title;
+                wrap: word-wrap;
+                font-size: 20px;
+                font-weight: 700;
+                color: Theme.controls-color-primary-text-enabled-variant;
+            }
+            TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { App.landing-open(root.index, i); } }
+        }
+    }
+}
+
+// Концерт: картинка в форме билета, дата на жёлтом пятне, название, «Концерт • 16+», город.
+export component ConcertTile inherits Rectangle {
+    in property <LCard> card;
+    in property <bool> big;
+    callback clicked;
+    property <length> ih: big ? 333px : 265px;
+    width: big ? 321px : 186px;
+    height: ih + 9px + 24px + (big ? 20px + 36px + 46px : 40px);
+    Rectangle {
+        y: 0;
+        height: root.ih;
+        border-radius: 8px;
+        clip: true;
+        background: Theme.controls-color-secondary-default-enabled;
+        Pic { width: parent.width; height: parent.height; source: card.cover; }
+        // Вырезы «билета»: дополнение маски оригинала, залитое фоном страницы.
+        Path {
+            width: parent.width;
+            height: parent.height;
+            viewbox-width: big ? 366 : 164;
+            viewbox-height: big ? 379 : 234;
+            commands: (big ? "M0 0V379H366V0Z" + App.concert-mask-top : "M0 0H164V234H0Z" + App.concert-mask);
+            fill: Theme.background-color-primary-enabled-content;
+            fill-rule: evenodd;
+            visible: (big ? App.concert-mask-top : App.concert-mask) != "";
+        }
+        Rectangle {
+            x: 8px;
+            y: root.ih - (big ? 80px : 72px) - 16px;
+            width: big ? 72px : 64px;
+            height: big ? 80px : 72px;
+            Image {
+                x: 3px;
+                y: -6px;
+                width: parent.width * 1.3;
+                height: parent.height * 1.3;
+                source: App.concert-date-bg;
+                image-fit: cover;
+            }
+            Text {
+                y: 6px;
+                width: parent.width;
+                horizontal-alignment: center;
+                text: card.month;
+                font-size: 12px;
+                font-weight: 700;
+                color: #00000080;
+            }
+            Text {
+                y: 22px;
+                width: parent.width;
+                horizontal-alignment: center;
+                text: card.day;
+                font-family: "YS Music Headline";
+                font-size: big ? 32px : 26px;
+                font-weight: 700;
+                color: #000000e6;
+            }
+            Text {
+                y: big ? 54px : 50px;
+                width: parent.width;
+                horizontal-alignment: center;
+                text: card.weekday;
+                font-size: 12px;
+                font-weight: 700;
+                color: #00000080;
+            }
+        }
+    }
+    Text {
+        y: root.ih + 8px;
+        width: root.width;
+        text: card.title;
+        overflow: elide;
+        font-size: 16px;
+        font-weight: 500;
+        color: Theme.controls-color-primary-text-enabled-variant;
+    }
+    Text {
+        y: root.ih + 32px;
+        width: root.width;
+        text: big ? card.subtitle + " • " + card.sub2 : card.subtitle;
+        overflow: elide;
+        font-size: Theme.font-size-label-m;
+        font-weight: 500;
+        color: Theme.controls-color-primary-text-enabled;
+    }
+    if !big: Text {
+        y: root.ih + 52px;
+        width: root.width;
+        text: card.sub2;
+        overflow: elide;
+        font-size: Theme.font-size-label-m;
+        font-weight: 500;
+        color: Theme.controls-color-primary-text-enabled;
+    }
+    TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { root.clicked(); } }
+    if big && card.extra != "": Rectangle {
+        x: 0;
+        y: root.ih + 68px;
+        width: price.preferred-width + 48px;
+        height: 46px;
+        border-radius: 23px;
+        background: pta.has-hover ? Theme.controls-color-primary-default-hovered : Theme.controls-color-primary-default-enabled;
+        price := Text { text: card.extra; font-size: Theme.font-size-label-s; font-weight: 500; color: #000000; }
+        pta := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { root.clicked(); } }
+    }
+}
+
+component Concerts inherits Rectangle {
+    in property <LBlock> block;
+    in property <int> index;
+    property <bool> big: block.kind == "CONCERTS_BIG";
+    property <length> w: big ? (self.width - 32px) / 3 : 186px;
+    strip := Strip { count: block.cards.length; step: big ? root.w + 16px : 202px; item-w: big ? root.w : 186px; width: root.width; }
+    LHeader { x: 0; y: 0; width: root.width; block: root.block; index: root.index; arrows: block.cards.length > strip.fit; can-back: strip.can-back; can-forward: strip.can-forward; back => { strip.back(); } forward => { strip.forward(); } }
+    height: 45px + (big ? 333px + 9px + 24px + 20px + 36px + 46px : 265px + 9px + 64px);
+    Rectangle {
+        y: 45px;
+        height: root.height - 45px;
+        clip: true;
+        for c[i] in block.cards: ConcertTile {
+            x: strip.shift + i * strip.step;
+            width: root.w;
+            big: root.big;
+            card: c;
+            clicked => { App.landing-open(root.index, i); }
+        }
+    }
+}
+
+// Все концерты: сетка по 5 в ряд, шаг ряда 369.
+component ConcertGrid inherits Rectangle {
+    in property <LBlock> block;
+    in property <int> index;
+    property <int> cols: max(1, floor((self.width + 16px) / 202px));
+    LHeader { x: 0; y: 0; width: root.width; block: root.block; index: root.index; }
+    height: 42px + ceil(block.cards.length / cols) * 369px;
+    for c[i] in block.cards: ConcertTile {
+        x: mod(i, root.cols) * 202px;
+        y: 42px + floor(i / root.cols) * 369px;
+        card: c;
+        clicked => { App.landing-open(root.index, i); }
+    }
+}
+
+// Треки в две колонки по четыре (Премьера, Искра), листаются стрелками.
+component TrackColumns inherits Rectangle {
+    in property <LBlock> block;
+    in property <int> index;
+    property <length> col-w: (self.width - 24px) / 2;
+    property <int> pages: ceil(max(block.tracks.length, block.chart.length) / 8);
+    in-out property <int> page: 0;
+    property <bool> has-cover: block.cover.width > 0;
+    property <length> top: has-cover ? 82px : block.desc != "" ? 62px : 45px;
+    LHeader {
+        x: 0;
+        y: 0;
+        width: root.width;
+        block: root.block;
+        index: root.index;
+        arrows: root.pages > 1;
+        can-back: root.page > 0;
+        can-forward: root.page + 1 < root.pages;
+        back => { root.page -= 1; }
+        forward => { root.page += 1; }
+    }
+    height: top + 4 * 56px;
+    if block.kind != "CHART_TRACKS": Rectangle {
+        y: root.top - 8px;
+        height: 4 * 56px;
+        for t[i] in block.tracks: TrackRow {
+            x: mod(floor(i / 4), 2) * (root.col-w + 24px);
+            y: mod(i, 4) * 56px;
+            width: root.col-w;
+            visible: floor(i / 8) == root.page;
+            item: t;
+            block: "L" + root.index;
+            index: i;
+            play => { App.landing-play(root.index, i); }
+            like => { App.landing-like(root.index, i); }
+        }
+    }
+    if block.kind == "CHART_TRACKS": Rectangle {
+        y: root.top - 8px;
+        height: 4 * 56px;
+        for r[i] in block.chart: ChartLine {
+            x: mod(floor(i / 4), 2) * (root.col-w + 24px);
+            y: mod(i, 4) * 56px;
+            width: root.col-w;
+            visible: floor(i / 8) == root.page;
+            line: r;
+            index: i;
+            block: "L" + root.index;
+            play => { App.landing-play(root.index, i); }
+            like => { App.landing-like(root.index, i); }
+        }
+    }
+}
+
+// Донаты: круглое фото 156, имя, цель и «Поддержать».
+component Donations inherits Rectangle {
+    in property <LBlock> block;
+    in property <int> index;
+    property <length> w: (self.width - 32px) / 3;
+    strip := Strip { count: block.cards.length; step: root.w + 16px; item-w: root.w; width: root.width; }
+    LHeader { x: 0; y: 0; width: root.width; block: root.block; index: root.index; arrows: block.cards.length > 3; can-back: strip.can-back; can-forward: strip.can-forward; back => { strip.back(); } forward => { strip.forward(); } }
+    height: 53px + 156px;
+    Rectangle {
+        y: 53px;
+        height: 156px;
+        clip: true;
+        for c[i] in block.cards: Rectangle {
+            x: strip.shift + i * (root.w + 16px);
+            width: root.w;
+            Cover { x: 0; y: 0; width: 156px; height: 156px; round: true; source: c.cover; }
+            name := Text {
+                x: 172px;
+                y: 29px;
+                width: parent.width - 172px;
+                text: c.title;
+                overflow: elide;
+                font-family: "YS Music Headline";
+                font-size: 20px;
+                font-weight: 700;
+                color: Theme.controls-color-primary-text-enabled-variant;
+            }
+            goal := Text {
+                x: 172px;
+                y: 55px;
+                width: parent.width - 172px;
+                text: c.subtitle;
+                wrap: word-wrap;
+                font-size: 16px;
+                font-weight: 500;
+                color: Theme.controls-color-primary-text-enabled;
+            }
+            Rectangle {
+                x: 168px;
+                y: 55px + goal.preferred-height + 12px;
+                width: 138px;
+                height: 40px;
+                border-radius: 20px;
+                background: dta.has-hover ? Theme.controls-color-secondary-default-hovered : Theme.controls-color-secondary-default-enabled;
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 4px;
+                    Icon { y: 11px; source: Icons.ruble; size: 18px; colorize: Theme.controls-color-primary-text-enabled-variant; }
+                    Text { vertical-alignment: center; text: T.t("Поддержать"); font-size: Theme.font-size-label-m; font-weight: 500; color: Theme.controls-color-primary-text-enabled-variant; }
+                }
+                dta := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { App.landing-open(root.index, i); } }
+            }
+        }
+    }
+}
+
+// Баннер спецпроекта: текст слева, картинка справа, «Реклама» в углу.
+component Special inherits Rectangle {
+    in property <LBlock> block;
+    in property <int> index;
+    height: 192px;
+    Rectangle {
+        border-radius: 16px;
+        background: Theme.background-color-primary-enabled-basic;
+    }
+    if block.cover.width > 0: Image {
+        x: parent.width - 310px;
+        y: -10px;
+        width: 211px;
+        height: 211px;
+        source: block.cover;
+        image-fit: contain;
+    }
+    Text {
+        x: 24px;
+        y: 32px;
+        width: 473px;
+        text: block.title;
+        font-family: "YS Music Headline";
+        font-size: 32px;
+        font-weight: 900;
+        color: block.ink;
+    }
+    Text {
+        x: 24px;
+        y: 68px;
+        width: 473px;
+        text: block.desc;
+        font-size: 16px;
+        font-weight: 500;
+        color: block.ink;
+    }
+    if block.button != "": Rectangle {
+        x: 24px;
+        y: 116px;
+        width: btn.preferred-width + 48px;
+        height: 44px;
+        border-radius: 22px;
+        background: block.button-bg;
+        btn := Text { text: block.button; font-size: Theme.font-size-label-m; font-weight: 500; color: block.button-fg; }
+    }
+    TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { App.landing-open(root.index, 0); } }
+    if block.ad: Rectangle {
+        x: parent.width - 83px;
+        y: parent.height - 26px;
+        width: 83px;
+        height: 26px;
+        border-top-left-radius: 4px;
+        border-bottom-right-radius: 12px;
+        background: #00000014;
+        Text { x: 6px; text: T.t("Реклама"); font-size: 12px; font-weight: 500; color: Theme.controls-color-primary-text-enabled-variant; }
+        Icon { x: 59px; source: Icons.more-small; size: 18px; colorize: Theme.controls-color-primary-text-enabled-variant; }
+    }
+}
+
+// Промо книг и подкастов: широкая картинка 356×236, название и подзаголовок.
+component Promotions inherits Rectangle {
+    in property <LBlock> block;
+    in property <int> index;
+    strip := Strip { count: block.cards.length; step: 372px; item-w: 356px; width: root.width; }
+    LHeader { x: 0; y: 0; width: root.width; block: root.block; index: root.index; arrows: block.cards.length > strip.fit; can-back: strip.can-back; can-forward: strip.can-forward; back => { strip.back(); } forward => { strip.forward(); } }
+    height: 45px + 236px + 8px + 36px;
+    Rectangle {
+        y: 45px;
+        height: root.height - 45px;
+        clip: true;
+        for c[i] in block.cards: Rectangle {
+            x: strip.shift + i * 372px;
+            width: 356px;
+            Cover { y: 0; width: 356px; height: 236px; radius: Theme.radius-size-l; source: c.cover; }
+            Text { y: 245px; width: 356px; text: c.title; overflow: elide; font-size: Theme.font-size-label-s; font-weight: 500; color: Theme.controls-color-primary-text-enabled-variant; }
+            Text { y: 263px; width: 356px; text: c.subtitle; overflow: elide; font-size: Theme.font-size-label-s; font-weight: 500; color: Theme.controls-color-primary-text-enabled; }
+            TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { App.landing-open(root.index, i); } }
+        }
+    }
+}
+
+// «Продолжить слушать»: последняя книга или подкаст, «Моя полка», «Новые выпуски».
+component ContinueListen inherits Rectangle {
+    in property <LBlock> block;
+    in property <int> index;
+    property <length> w: (self.width - 32px) / 3;
+    LHeader { x: 0; y: 0; width: root.width; block: root.block; index: root.index; }
+    height: 42px + 84px;
+    for c[i] in block.cards: Rectangle {
+        x: i * (root.w + 16px);
+        y: 42px;
+        width: root.w;
+        height: 84px;
+        border-radius: 12px;
+        background: c.bg;
+        property <bool> last: c.extra == "last";
+        if last: Cover { x: 12px; y: 13px; width: 58px; height: 58px; radius: 4px; source: c.cover; }
+        if !last && c.cover.width > 0: Cover { x: parent.width - 73px; y: 13px; width: 58px; height: 58px; radius: 4px; source: c.cover; }
+        ct := Text {
+            x: last ? 82px : 12px;
+            y: last ? 20px : 30px;
+            width: min(self.preferred-width, last ? parent.width - 82px - 100px : parent.width - 130px);
+            text: c.title;
+            overflow: elide;
+            font-size: 16px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+        Icon { x: ct.x + ct.width + 4px; y: ct.y; source: Icons.arrow-right; size: 24px; colorize: #ffffff80; }
+        if last: Text {
+            x: 82px;
+            y: 44px;
+            text: c.subtitle;
+            font-size: Theme.font-size-label-m;
+            font-weight: 500;
+            color: #ffffff80;
+        }
+        TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { App.landing-open(root.index, i); } }
+        if last: Rectangle {
+            x: parent.width - 44px;
+            y: 26px;
+            width: 32px;
+            height: 32px;
+            border-radius: 16px;
+            background: #ffffff;
+            Icon { source: Icons.play-xxs; size: 20px; colorize: c.bg; }
+            TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { App.landing-play(root.index, i); } }
+        }
+    }
+}
+
+// Вкладки страницы: «Для вас» и «Тренды», «Книги» и «Подкасты».
+component PageTabs inherits Rectangle {
+    height: 54px;
+    HorizontalLayout {
+        spacing: 8px;
+        alignment: start;
+        for t[k] in App.landing-tabs: LPill {
+            h: 54px;
+            text: t.title;
+            subtitle: t.subtitle;
+            cover: t.cover;
+            cover2: t.cover2;
+            selected: k == App.landing-tab;
+            clicked => { App.landing-select-tab(k); }
+        }
+    }
+}
+
+// Отступ снизу после блока, как у оригинала.
+component BlockView inherits VerticalLayout {
+    in property <LBlock> block;
+    in property <int> index;
+    // Курсор над страницей (в координатах колонки блоков): стрелки карусели видны только у блока под ним.
+    in property <bool> pointer-in;
+    in property <length> pointer-y;
+    property <bool> hot: pointer-in && pointer-y >= self.y && pointer-y < self.y + self.height;
+    changed hot => {
+        if hot {
+            App.landing-hover = index;
+        } else if App.landing-hover == index {
+            App.landing-hover = -1;
+        }
+    }
+    property <string> k: block.kind;
+    padding-bottom: k == "" ? 0px : k == "TABS" ? 33px : k == "SPECIAL" ? 38px : k == "LIKES_AND_HISTORY" ? 38px : k == "CONTINUE_LISTEN" ? 27px : 40px;
+    padding-top: k == "LIKES_AND_HISTORY" ? 10px : k == "CONTINUE_LISTEN" ? 25px : 0px;
+    if k == "TABS": PageTabs { }
+    if k == "LIKES_AND_HISTORY": LikesHistory { block: root.block; index: root.index; }
+    if k == "ALBUM_PROMO": AlbumPromo { block: root.block; index: root.index; }
+    if k == "SIMPLE_ALBUM_PROMO": SimplePromo { block: root.block; index: root.index; }
+    if k == "SPECIAL": Special { block: root.block; index: root.index; }
+    if k == "SETS_BY_WAVES" || k == "WAVES": VibeSets { block: root.block; index: root.index; }
+    if k == "NEW_RELEASES" || k == "EDITORIAL_NEW_RELEASES": NewReleases { block: root.block; index: root.index; }
+    if k == "IN_STYLE": Cards { block: root.block; index: root.index; size: 186px; with-tabs: true; }
+    if k == "CONCERTS_PERSONAL" || k == "CONCERTS_TOP" || k == "VIEWED_CONCERTS" || k == "CONCERTS_BIG": Concerts { block: root.block; index: root.index; }
+    if k == "CONCERTS_GRID": ConcertGrid { block: root.block; index: root.index; }
+    if k == "SMART_OPEN_PLAYLIST" || k == "OPEN_PLAYLIST" || k == "NON_MUSIC_OPEN_PLAYLIST" || k == "CHART_TRACKS": TrackColumns { block: root.block; index: root.index; }
+    if k == "DONATIONS": Donations { block: root.block; index: root.index; }
+    if k == "NEUROMUSIC": Neuro { block: root.block; index: root.index; }
+    if k == "MIXES_MUSIC" || k == "MIXES_GRID": Mixes { block: root.block; index: root.index; }
+    if k == "EDITORIAL_PROMOTIONS": Promotions { block: root.block; index: root.index; }
+    if k == "CONTINUE_LISTEN": ContinueListen { block: root.block; index: root.index; }
+    if k == "CHART_ALBUMS": Cards { block: root.block; index: root.index; chart: true; }
+    if k == "CARDS": Cards { block: root.block; index: root.index; }
+    if k == "LOADING": Rectangle {
+        height: 26px + 45px + 191px;
+        Shimmer { x: 0; y: 0; width: 220px; height: 26px; border-radius: 8px; }
+        for i in 5: Shimmer { x: i * 207px; y: 45px; width: 191px; height: 191px; border-radius: Theme.radius-size-l; }
+    }
+}
+
+export component LandingPage inherits Rectangle {
+    property <length> pad: 25px;
+    // Другая страница — снова сверху.
+    property <string> page-title: App.landing-title;
+    changed page-title => { flick.content-y = 0; }
+    flick := Flickable {
+        width: root.width;
+        height: root.height;
+        content-height: col.preferred-height;
+        hover := TouchArea {
+        col := VerticalLayout {
+            padding-left: root.pad;
+            padding-right: root.pad;
+            padding-top: 25px;
+            padding-bottom: 20px;
+            alignment: start;
+            // h1 оригинала: 32/32, вкладки на 27 px ниже.
+            Text {
+                height: 32px;
+                vertical-alignment: center;
+                text: App.landing-title;
+                font-family: "YS Music Headline";
+                font-size: 32px;
+                font-weight: 700;
+                color: Theme.controls-color-primary-text-enabled-variant;
+            }
+            if App.landing-location: Rectangle {
+                height: 24px + 46px;
+                HorizontalLayout {
+                    y: 8px;
+                    height: 24px;
+                    alignment: start;
+                    spacing: 0px;
+                    Text { text: T.t("Рядом"); vertical-alignment: center; font-size: 16px; font-weight: 500; color: Theme.controls-color-primary-text-enabled-variant; }
+                    Icon { y: 3px; source: Icons.arrow-down-tiny; size: 18px; colorize: Theme.controls-color-primary-text-enabled-variant; }
+                }
+            }
+            if !App.landing-location: Rectangle { height: 27px; }
+            if App.landing-loading: Rectangle {
+                height: 400px;
+                for i in 5: Shimmer { x: i * 207px; y: 0; width: 191px; height: 191px; border-radius: Theme.radius-size-l; }
+            }
+            for b[i] in App.landing-blocks: BlockView { block: b; index: i; pointer-in: hover.has-hover; pointer-y: hover.mouse-y; }
+        }
+        }
+    }
+
+    // При прокрутке сверху остаются маленькие вкладки или заголовок на полупрозрачном фоне.
+    property <bool> sticky: -flick.content-y > 110px;
+    // Затухание 120px с прозрачной нижней половиной: рисуем только верхние 60 — вид тот же.
+    if sticky: Rectangle {
+        y: 0;
+        height: 60px;
+        background: @linear-gradient(180deg, Theme.background-color-primary-enabled-content 0%, Theme.background-color-primary-enabled-content.with-alpha(0) 100%);
+    }
+    if sticky && App.landing-tabs.length > 0: HorizontalLayout {
+        x: root.pad;
+        y: 12px;
+        height: 36px;
+        spacing: 8px;
+        alignment: start;
+        for t[k] in App.landing-tabs: LPill {
+            h: 36px;
+            text: t.title;
+            selected: k == App.landing-tab;
+            clicked => { App.landing-select-tab(k); }
+        }
+    }
+    if sticky && App.landing-tabs.length == 0: Text {
+        x: root.pad;
+        y: 12px;
+        text: App.landing-title;
+        font-family: "YS Music Headline";
+        font-size: 22px;
+        font-weight: 700;
+        color: Theme.controls-color-primary-text-enabled-variant;
+    }
+}
+
+// Чарт: «‹ Чарт», 100 треков с местом и движением.
+export component ChartPage inherits Rectangle {
+    property <length> pad: 25px;
+    flick := Flickable {
+        width: root.width;
+        height: root.height;
+        content-height: 103px + App.chart-rows.length * 56px + 40px;
+        for r[i] in App.chart-rows: Rectangle {
+            x: root.pad;
+            y: 97px + i * 56px;
+            width: root.width - 2 * root.pad;
+            height: 56px;
+            visible: self.y + flick.content-y > -60px && self.y + flick.content-y < root.height + 60px;
+            border-radius: Theme.radius-size-m;
+            background: row.hot ? Theme.controls-color-secondary-default-disabled : transparent;
+            Text {
+                x: 12px;
+                y: 6px;
+                width: 20px;
+                horizontal-alignment: center;
+                text: r.pos;
+                font-size: Theme.font-size-label-m;
+                font-weight: 400;
+                color: Theme.controls-color-primary-text-enabled;
+            }
+            Icon {
+                x: 12px;
+                y: 30px;
+                size: 20px;
+                source: r.trend == 2 ? Icons.chart-up : r.trend == 3 ? Icons.chart-down : r.trend == 4 ? Icons.chart-new : Icons.chart-same;
+                colorize: r.trend == 2 ? Theme.message-color-successful-text-enabled : r.trend == 3 ? Theme.message-color-error-text-enabled : r.trend == 4 ? Theme.controls-color-primary-default-enabled : Theme.controls-color-primary-text-enabled;
+            }
+            row := TrackRow {
+                x: 44px;
+                width: parent.width - 44px - 9px;
+                item: r.item;
+                block: "chart-page";
+                index: i;
+                background: transparent;
+                play => { App.chart-play(i); }
+                like => { App.chart-like(i); }
+            }
+        }
+        if App.chart-loading: Rectangle {
+            y: 97px;
+            height: 10 * 56px;
+            for i in 10: Shimmer { x: root.pad + 44px; y: i * 56px + 8px; width: 40px; height: 40px; border-radius: Theme.radius-size-s; }
+        }
+    }
+    property <bool> sticky: -flick.content-y > 40px;
+    Rectangle {
+        y: 0;
+        height: sticky ? 70px : 0px;
+        background: @linear-gradient(180deg, Theme.background-color-primary-enabled-content 0%, Theme.background-color-primary-enabled-content.with-alpha(0) 100%);
+    }
+    NavCircle {
+        x: root.pad;
+        y: sticky ? 12px : 25px;
+        icon: Icons.arrow-left-small;
+        enabled: App.can-back;
+        clicked => { App.go-back(); }
+    }
+    Text {
+        x: root.pad + 48px;
+        y: sticky ? 12px : 25px;
+        height: 32px;
+        vertical-alignment: center;
+        text: T.t("Чарт");
+        font-family: "YS Music Headline";
+        font-size: sticky ? 22px : 32px;
+        font-weight: 700;
+        color: Theme.controls-color-primary-text-enabled-variant;
+    }
+}

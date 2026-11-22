@@ -1,0 +1,146 @@
+// Исполнители из коллекции: топ месяца и понравившиеся.
+
+import { Theme } from "theme.slint";
+import { Icons, Icon, Cover, NavCircle } from "widgets.slint";
+import { T, App } from "state.slint";
+
+// «Исполнители» из коллекции: топ месяца (карточки от 228) и понравившиеся (от 178).
+export component MyArtistsPage inherits Rectangle {
+    property <length> pad: 24px;
+
+    flick := Flickable {
+        property <length> w: self.width - 2 * pad;
+        property <int> tc: max(2, floor((w + 20px) / 248px));
+        property <length> ts: (w - (tc - 1) * 24px) / tc;
+        property <int> trows: ceil(App.top-artists.length / tc);
+        property <length> top-y: 96px;
+        property <length> top-h: App.top-artists.length > 0 ? 56px + trows * (ts + 112px) - 24px : 0px;
+        property <int> lc: max(2, floor((w + 20px) / 198px));
+        property <length> ls: (w - (lc - 1) * 24px) / lc;
+        property <length> liked-y: top-y + top-h;
+        property <int> lrows: ceil(App.my-artists.length / lc);
+        content-height: liked-y + (App.my-artists.length > 0 ? 80px + lrows * (ls + 92px) : 0px) + 24px;
+
+        if App.can-back: NavCircle {
+            x: 24px;
+            y: 24px;
+            icon: Icons.arrow-left-small;
+            clicked => { App.go-back(); }
+        }
+        Text {
+            x: App.can-back ? 72px : pad;
+            y: 24px;
+            height: 32px;
+            text: T.t("Исполнители");
+            vertical-alignment: center;
+            font-family: "YS Music Headline";
+            font-size: Theme.font-size-headline-xl;
+            font-weight: 700;
+            color: Theme.controls-color-primary-text-enabled-variant;
+        }
+
+        if App.top-artists.length > 0: Text {
+            x: pad;
+            y: parent.top-y;
+            height: 32px;
+            text: T.t("Ваш топ месяца");
+            vertical-alignment: center;
+            font-family: "YS Music Headline";
+            font-size: Theme.font-size-headline-s;
+            font-weight: 700;
+            color: Theme.controls-color-primary-text-enabled-variant;
+        }
+        for a[i] in App.top-artists: Rectangle {
+            x: pad + mod(i, flick.tc) * (flick.ts + 24px);
+            y: flick.top-y + 56px + floor(i / flick.tc) * (flick.ts + 112px);
+            width: flick.ts;
+            height: flick.ts + 64px;
+            Cover {
+                y: 0;
+                width: parent.width;
+                height: parent.width;
+                round: true;
+                source: a.cover;
+            }
+            HorizontalLayout {
+                y: parent.width + 8px;
+                width: parent.width;
+                height: 20px;
+                alignment: center;
+                Text {
+                    text: a.rank;
+                    font-size: Theme.font-size-label-m;
+                    font-weight: 700;
+                    color: Theme.controls-color-primary-text-enabled-variant;
+                }
+                Icon {
+                    source: a.trend == 0 ? Icons.crown : a.trend == 2 ? Icons.chart-up : a.trend == 3 ? Icons.chart-down : a.trend == 4 ? Icons.chart-new : Icons.chart-same;
+                    size: 20px;
+                    colorize: a.trend == 0 ? Theme.controls-color-primary-default-enabled : Theme.controls-color-primary-text-enabled;
+                }
+            }
+            Text {
+                y: parent.width + 29px;
+                width: parent.width;
+                horizontal-alignment: center;
+                text: a.name;
+                overflow: elide;
+                font-size: Theme.font-size-label-s;
+                font-weight: 500;
+                color: Theme.controls-color-primary-text-enabled-variant;
+            }
+            Text {
+                y: parent.width + 46px;
+                width: parent.width;
+                horizontal-alignment: center;
+                text: a.time;
+                font-size: Theme.font-size-label-s;
+                font-weight: 500;
+                color: Theme.controls-color-primary-text-enabled;
+            }
+            TouchArea {
+                mouse-cursor: MouseCursor.pointer;
+                clicked => { App.open-top-artist(i); }
+            }
+        }
+
+        if App.my-artists.length > 0: Text {
+            x: pad;
+            y: parent.liked-y + 24px;
+            height: 32px;
+            text: T.t("Вам понравились");
+            vertical-alignment: center;
+            font-family: "YS Music Headline";
+            font-size: Theme.font-size-headline-s;
+            font-weight: 700;
+            color: Theme.controls-color-primary-text-enabled-variant;
+        }
+        for a[i] in App.my-artists: Rectangle {
+            x: pad + mod(i, flick.lc) * (flick.ls + 24px);
+            y: flick.liked-y + 80px + floor(i / flick.lc) * (flick.ls + 92px);
+            width: flick.ls;
+            height: flick.ls + 28px;
+            Cover {
+                y: 0;
+                width: parent.width;
+                height: parent.width;
+                round: true;
+                source: a.cover;
+            }
+            Text {
+                y: parent.width + 9px;
+                width: parent.width;
+                horizontal-alignment: center;
+                text: a.title;
+                overflow: elide;
+                font-size: Theme.font-size-label-s;
+                font-weight: 500;
+                color: Theme.controls-color-primary-text-enabled-variant;
+            }
+            TouchArea {
+                mouse-cursor: MouseCursor.pointer;
+                clicked => { App.open-card("my-artists", i); }
+            }
+        }
+    }
+}

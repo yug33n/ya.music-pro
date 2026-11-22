@@ -1,0 +1,543 @@
+// Общее состояние интерфейса (глобал App), структуры строк и карточек, переводы (T).
+// Rust пишет сюда данные и подписывается на колбэки.
+
+export enum Page { wave, search, trends, concerts, nonmusic, collection, list, artist, artists, settings, grid, chart, history }
+
+export struct TrackItem {
+    title: string,
+    version: string,
+    artists: string,
+    duration: string,
+    cover: image,
+    liked: bool,
+    explicit: bool,
+    available: bool,
+    artist-names: [string],
+}
+
+export struct PinItem {
+    title: string,
+    subtitle: string,
+    cover: image,
+    round: bool,
+}
+
+export struct CardItem {
+    title: string,
+    subtitle: string,
+    cover: image,
+    round: bool,
+    year: string,
+    likes: string,
+    explicit: bool,
+    // Подборки: три обложки веером.
+    cover2: image,
+    cover3: image,
+}
+
+// Строка чарта: трек, место, движение (как у TopArtistItem.trend).
+export struct ChartRow {
+    item: TrackItem,
+    pos: string,
+    trend: int,
+}
+
+// Строка истории. kind: 0 — день, 1 — откуда слушали, 2 — трек, 3 — трек альбома с номером.
+export struct HistRow {
+    kind: int,
+    y: length,
+    title: string,
+    subtitle: string,
+    // «Альбом» или «Плейлист» над заголовком группы.
+    label: string,
+    cover: image,
+    round: bool,
+    bg: color,
+    arrow: bool,
+    pos: string,
+    item: TrackItem,
+}
+
+export struct HistTab {
+    title: string,
+    y: length,
+}
+
+// Вкладка лендинга: «Для вас», «Тренды», «Книги»… — с обложками и подписью.
+export struct LTab {
+    title: string,
+    subtitle: string,
+    cover: image,
+    cover2: image,
+}
+
+// Карточка блока лендинга; блоку нужны только свои поля.
+export struct LCard {
+    title: string,
+    subtitle: string,
+    sub2: string,
+    extra: string,
+    cover: image,
+    cover2: image,
+    cover3: image,
+    round: bool,
+    explicit: bool,
+    likes: string,
+    bg: color,
+    bg2: color,
+    fg: color,
+    month: string,
+    day: string,
+    weekday: string,
+    pos: string,
+    trend: int,
+}
+
+// Блок лендинга по типу из скелета (NEW_RELEASES, WAVES, CONCERTS_PERSONAL…).
+export struct LBlock {
+    kind: string,
+    title: string,
+    desc: string,
+    more: bool,
+    cover: image,
+    tabs: [LTab],
+    tab: int,
+    cards: [LCard],
+    tracks: [TrackItem],
+    chart: [ChartRow],
+    ready: bool,
+    // У заголовка есть крестик «Скрыть блок».
+    can-hide: bool,
+    // Баннер SPECIAL: кнопка и её цвета, текст, «Реклама».
+    button: string,
+    button-bg: color,
+    button-fg: color,
+    ink: color,
+    ad: bool,
+}
+
+export struct LyricLine {
+    text: string,
+    time: float,
+}
+
+export struct MenuEntry {
+    id: string,
+    text: string,
+    icon: image,
+    submenu: bool,
+}
+
+export struct WheelEntry {
+    name: string,
+    description: string,
+    cover: image,
+    round: bool,
+}
+
+// trend: 0 — корона (первое место), 1 — без изменений, 2 — вверх, 3 — вниз, 4 — новый.
+export struct TopArtistItem {
+    name: string,
+    cover: image,
+    rank: string,
+    trend: int,
+    time: string,
+}
+
+// Перевод: русская строка → строка выбранного языка (словари оригинала, см. src/i18n.rs).
+// Чтение `lang` внутри t() привязывает текст к языку: при смене он пересчитывается.
+export global T {
+    in property <string> lang: "ru";
+    pure callback tr(string) -> string;
+    public pure function t(s: string) -> string {
+        return lang == "ru" ? s : tr(s);
+    }
+}
+
+export global App {
+    in-out property <Page> page: Page.wave;
+    in property <bool> maximized;
+    // Слой на всё окно на один кадр: Slint перерисовывает место, где элемент появился и исчез,
+    // так окно рисуется целиком после переноса на другой монитор.
+    in property <bool> repaint;
+    in property <string> toast;
+    in property <image> toast-cover;
+    in property <bool> toast-has-cover;
+    // Новая версия на GitHub (src/update.rs): пусто — обновлений нет.
+    in property <string> update-version;
+    // Установщик скачивается.
+    in property <bool> update-busy;
+    callback update-install();
+    // «Что изменилось»: сравнение запущенной и новой версии на GitHub.
+    callback update-changes();
+    // «Проверять обновления» в настройках.
+    in property <bool> check-updates: true;
+    // «Треки 18+» в меню профиля.
+    in property <bool> allow-explicit: true;
+    // Подсказка у значка «!»: текст дисклеймера рядом с курсором.
+    in property <string> hint-text: "Возрастное ограничение 18+";
+    in-out property <bool> hint-open;
+    in-out property <length> hint-x;
+    in-out property <length> hint-y;
+    // История переходов, как в браузере.
+    in property <bool> can-back;
+    in property <bool> can-forward;
+    in property <string> version;
+    in property <string> app-name;
+    in property <[WheelEntry]> wheel;
+    in property <bool> pinned;
+
+    // Аккаунт
+    in property <string> login;
+    in property <image> avatar;
+    in property <bool> plus;
+    in property <[PinItem]> pins;
+
+    // Плеер
+    in property <bool> has-track;
+    in property <string> title;
+    in property <string> artists;
+    in property <image> cover;
+    in property <color> tint: #1c2a40;
+    in property <color> accent: #3d5c8f;
+    in property <bool> playing;
+    in property <bool> loading;
+    in property <float> position;
+    in property <float> duration;
+    in property <bool> liked;
+    in property <int> repeat;
+    in property <bool> shuffle;
+    in property <float> volume: 0.6;
+    in property <bool> is-wave;
+    in property <string> source-title;
+    // Волна по треку, исполнителю, вайбу: над пятном «челка» с крестиком.
+    in property <bool> wave-context;
+    in property <[string]> artist-list;
+    in property <string> artists-longest;
+    // Фаза анимации пятна, секунды; идёт только во время игры на странице волны.
+
+
+    // Страница списка: плейлист, альбом, «Мне нравится»
+    in property <string> list-kind;
+    in property <string> list-kind-label;
+    in property <string> list-title;
+    in property <string> list-desc;
+    in property <string> list-meta;
+    // Исполнители альбома: каждый — ссылка на свою страницу.
+    in property <[string]> list-artists;
+    callback list-open-artist(int);
+    in property <string> list-year;
+    in property <string> list-likes;
+    in property <string> list-label;
+    in property <bool> list-own;
+    // Правка своего плейлиста: 0 — нет, 1 — название, 2 — описание (поле названия тоже открыто).
+    in-out property <int> list-edit;
+    // Запрос правки из меню «…»: 1 — название, 2 — описание; страница сбрасывает в 0.
+    in-out property <int> list-edit-request;
+    // Настоящее описание; в list-desc для пустого своего плейлиста лежит «Добавить описание ...».
+    in property <string> list-desc-raw;
+    callback list-save-title(string);
+    callback list-save-desc(string);
+    callback list-change-cover();
+    callback list-remove-track(int);
+    in property <bool> list-liked;
+    in property <image> list-cover;
+    in property <image> list-artist-cover;
+    in property <color> list-tint: #00000000;
+    in property <[TrackItem]> tracks;
+    in property <bool> list-loading;
+    in property <int> list-current: -1;
+    in-out property <string> list-filter;
+
+    // Коллекция
+    in property <bool> coll-loading: true;
+    in property <string> likes-subtitle;
+    in property <image> likes-cover;
+    in property <[TrackItem]> likes-preview;
+    in property <[TopArtistItem]> top-artists;
+    in property <[string]> playlist-tabs;
+    in property <int> playlist-tab;
+    in property <[CardItem]> playlists;
+    in property <[string]> album-tabs;
+    in property <int> album-tab;
+    in property <[CardItem]> albums;
+
+    // Моя волна: пятно, фон из палитры трека.
+    in property <image> blob;
+    in property <[color]> vibe-stops: [#000, #000, #000, #000, #000, #000, #000, #000, #000, #000, #000, #000, #000, #000, #000, #000];
+    in property <color> vibe-edge: #000;
+
+    // Текущий трек: подробности для плеера.
+    in property <string> track-version;
+    in property <bool> track-explicit;
+    in property <bool> has-lyrics;
+    in property <bool> can-prev;
+
+    // Полноэкранный плеер: 0 обложка, 1 очередь, 2 текст.
+    in-out property <bool> fullscreen;
+    in-out property <int> fs-mode;
+    in property <image> cover-big;
+    in property <string> queue-header;
+    in property <string> queue-title;
+    in property <[TrackItem]> queue;
+    in property <[LyricLine]> lyrics;
+    in property <int> lyric-current: -1;
+    in property <bool> lyrics-loading;
+    in property <string> lyrics-writers;
+    in property <string> lyrics-source;
+    // Стадия текста, как SyncLyricsScroller: 0 вступление, 1 отсчёт перед первой строкой, 2 строки, 3 финал.
+    in property <int> lyric-state: 2;
+    in property <int> lyric-counter;
+    // Строка, к которой прокручен текст (остаётся на месте в паузах между строками).
+    in property <int> lyric-target: -1;
+    // Пользователь крутит текст колесом: все строки видны и кликабельны 3 с.
+    in property <bool> lyrics-scrolled;
+    // Растёт при смене текста: лента возвращается к началу.
+    in property <int> lyrics-epoch;
+    // Мышь двигалась: строки выше текущей видны 3 с.
+    in property <bool> lyrics-upper;
+    callback lyrics-wheel();
+    callback lyrics-mouse();
+
+    // Всплывающие окна: меню трека и громкость.
+    in-out property <bool> menu-open;
+    in-out property <length> menu-x;
+    in-out property <length> menu-y;
+    in property <[MenuEntry]> menu-items;
+    in-out property <int> submenu-open: -1;
+    in property <[string]> menu-playlists;
+    // Меню в теме приложения (кроме волны и плеера на весь экран) и под кнопкой, а не над ней.
+    in property <bool> menu-themed;
+    in property <bool> menu-below;
+
+    // Настройки звука: качество и эквалайзер.
+    in-out property <bool> eq-open;
+    in property <int> quality;
+    in property <bool> eq-on;
+    in property <float> eq-preamp: 1;
+    in property <[float]> eq-gains: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    in property <int> eq-preset: 1;
+    in property <[string]> eq-presets;
+    callback set-quality(int);
+    callback eq-toggle();
+    callback eq-set-band(int, float);
+    callback eq-set-preamp(float);
+    callback eq-select-preset(int);
+
+    // Поиск
+    in-out property <string> search-text;
+    in-out property <int> search-tab;
+    in property <bool> search-loading: true;
+    in property <[string]> search-suggest;
+    in property <[CardItem]> search-mixes;
+    in property <[CardItem]> search-missed;
+    in property <[CardItem]> search-newpl;
+    in property <[ChartRow]> search-chart;
+    in property <[CardItem]> search-history;
+    in property <bool> searching;
+    in property <bool> results-loading;
+    in property <[TrackItem]> sr-tracks;
+    in property <[CardItem]> sr-artists;
+    in property <[CardItem]> sr-albums;
+    in property <[CardItem]> sr-playlists;
+
+    // Исполнитель
+    in property <bool> ar-loading: true;
+    in property <string> ar-name;
+    in property <string> ar-listeners;
+    in property <image> ar-cover;
+    in property <color> ar-tint: #00000000;
+    in property <bool> ar-liked;
+    in property <bool> ar-pinned;
+    in property <[TrackItem]> ar-popular;
+    in property <int> ar-current: -1;
+    in property <string> ar-familiar;
+    in property <[CardItem]> ar-studio;
+    in property <[CardItem]> ar-release;
+    in property <[CardItem]> my-artists;
+
+    // Лендинги: «Для вас и Тренды», «Концерты», «Книги и подкасты».
+    in property <string> landing-title;
+    in property <[LBlock]> landing-blocks;
+    // Блок лендинга под курсором: у него видны стрелки карусели.
+    in-out property <int> landing-hover: -1;
+    in property <[LTab]> landing-tabs;
+    in property <int> landing-tab;
+    in property <bool> landing-loading;
+    in property <bool> landing-location;
+    in property <string> concert-mask;
+    in property <string> concert-mask-top;
+    in property <image> concert-date-bg;
+    callback landing-select-tab(int);
+    callback landing-subtab(int, int);
+    callback landing-open(int, int);
+    callback landing-play(int, int);
+    callback landing-like(int, int);
+    callback landing-more(int);
+    callback landing-header(int);
+    callback landing-hide(int);
+    // Заголовки скрытых блоков через запятую, для настроек.
+    in property <string> hidden-blocks;
+
+    // Страница чарта.
+    in property <[ChartRow]> chart-rows;
+    in property <bool> chart-loading;
+    callback chart-play(int);
+    callback chart-like(int);
+
+    // История: какие строки сейчас на экране, Rust считает по прокрутке.
+    in property <[HistRow]> hist-rows;
+    in property <[HistTab]> hist-tabs;
+    in property <int> hist-tab;
+    in property <int> hist-first;
+    in property <int> hist-count;
+    in property <length> hist-height;
+    in property <bool> hist-loading;
+    callback hist-scrolled(length, length);
+    callback hist-cover(int);
+    callback hist-play(int);
+    callback hist-like(int);
+    callback hist-open(int);
+
+    // «Смотреть всё»: вкладки и сетка карточек.
+    in property <string> grid-title;
+    in property <[string]> grid-tabs;
+    in property <int> grid-tab;
+    in property <[CardItem]> grid-cards;
+    in property <bool> grid-create;
+    callback open-grid(string, string);
+    callback select-grid-tab(int);
+
+    // Обложка на всё окно (ImageSliderModal оригинала).
+    in-out property <bool> cover-open;
+    in property <image> cover-view;
+    callback open-cover(string);
+
+    in property <bool> nav-collapsed;
+    callback toggle-navbar();
+
+    // Меню профиля и настройки.
+    in-out property <bool> account-open;
+    in-out property <int> account-sub: -1;
+    in property <string> theme-mode: "system";
+    in property <string> lang: "ru";
+    in property <bool> less-ai;
+    in property <string> download-dir;
+    in property <bool> download-flac;
+    in property <bool> log-volume;
+    // Режим работы: «Плавный» — анимации и кэш слоёв, «Лёгкий» — без них.
+    in property <bool> motion: true;
+    // Статус «Слушает» в профиле Discord и что с ним сейчас.
+    in property <bool> discord-on;
+    in property <string> discord-status;
+    // Запуск вместе с Windows (сразу в трее).
+    in property <bool> autostart;
+    // На Linux нет трея и словарей официального клиента.
+    in property <bool> linux;
+    // Есть словари для en/uz/kk (из установленного официального клиента).
+    in property <bool> translations: true;
+
+    // Вход по коду устройства.
+    in property <bool> logged-out;
+    in property <string> login-code;
+    in property <[string]> login-code-chars;
+    in property <string> login-error;
+    callback login-start();
+    callback login-open();
+    callback login-copy();
+    callback account-action(string);
+    callback setting(string);
+    in property <[CardItem]> ar-albums;
+    in property <[CardItem]> ar-playlists;
+    in property <[CardItem]> ar-compilations;
+    in property <[CardItem]> ar-similar;
+
+    callback navigate(Page);
+    callback open-fullscreen(int);
+    callback open-track-menu(length, length);
+    callback menu-action(string);
+    callback menu-playlist(int);
+    callback jump-queue(int);
+    callback open-current-album();
+    callback open-current-artist(int);
+    callback reset-wave();
+    callback go-forward();
+    callback row-open-album(string, int);
+    callback row-open-artist(string, int, int);
+    callback list-trailer();
+    callback list-download();
+    callback artist-trailer();
+    callback seek-lyric(int);
+
+    callback search-edited(string);
+    callback open-suggest(int);
+    callback open-card(string, int);
+    callback play-chart(int);
+    callback like-chart(int);
+    callback play-result(int);
+    callback like-result(int);
+
+    callback artist-play();
+    callback artist-like();
+    callback artist-pin();
+    callback list-pin();
+    callback list-like();
+    callback open-list-menu(length, length);
+    callback row-menu(string, int, length, length);
+    callback artist-play-track(int);
+    callback artist-like-track(int);
+    callback artist-familiar();
+    callback open-pin(int);
+    callback open-likes();
+    callback open-playlist(int);
+    callback open-album(int);
+    callback open-top-artist(int);
+    callback select-playlist-tab(int);
+    callback select-album-tab(int);
+    callback create-playlist();
+    callback play-likes-preview(int);
+    callback like-preview(int);
+    callback go-back();
+    callback play-wheel(int);
+
+    callback play-pause();
+    callback next();
+    callback prev();
+    callback seek(float);
+    callback like();
+    callback dislike();
+    callback cycle-repeat();
+    callback toggle-shuffle();
+    callback set-volume(float);
+    // Громкость до выключения звука: её возвращает повторный клик.
+    in-out property <float> unmuted-volume: 0.6;
+    public function toggle-mute() {
+        if volume > 0 {
+            unmuted-volume = volume;
+            set-volume(0);
+        } else {
+            set-volume(unmuted-volume > 0.01 ? unmuted-volume : 0.6);
+        }
+    }
+
+    callback play-list(int);
+    callback like-track(int);
+    callback request-cover(int);
+    callback filter-changed(string);
+
+    callback drag-window();
+    callback resize-window(int);
+    callback toggle-maximize();
+    callback window-resized();
+    // Во сколько раз интерфейс увеличен от 1920 CSS-пикселей ширины (для размеров, заданных в px).
+    in property <float> ui-scale: 1;
+    // Полный масштаб окна (DPI × ui-scale): сколько физических пикселей в 1px.
+    in property <float> dpr: 1;
+    callback minimize();
+    // Мини-плеер поверх всех окон.
+    in-out property <bool> mini;
+    callback toggle-mini();
+    callback close();
+
+    pure callback format-time(float) -> string;
+}

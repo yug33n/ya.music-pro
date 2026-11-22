@@ -1,0 +1,263 @@
+// Страница исполнителя.
+
+import { Theme } from "theme.slint";
+import { Icons, Icon, Cover, Shimmer, NavArrows } from "widgets.slint";
+import { T, App } from "state.slint";
+import { TrackRow, BlockHeader } from "rows.slint";
+import { Shelf } from "shelf.slint";
+
+component PillAction inherits Rectangle {
+    in property <image> icon;
+    in property <string> text;
+    in property <bool> primary;
+    callback clicked;
+    height: 40px;
+    width: text == "" ? 40px : 117px;
+    border-radius: 20px;
+    background: primary
+        ? (ta.has-hover ? Theme.controls-color-primary-default-hovered : Theme.controls-color-primary-default-enabled)
+        : (ta.has-hover ? Theme.controls-color-secondary-default-hovered : Theme.controls-color-secondary-default-enabled);
+    animate background { duration: App.motion ? Theme.duration-transition : 0ms; }
+    property <brush> ink: primary ? Theme.controls-color-primary-on-default-enabled : Theme.controls-color-secondary-on-default-enabled;
+    HorizontalLayout {
+        alignment: center;
+        spacing: 4px;
+        Icon { y: 10px; source: icon; size: 20px; colorize: ink; }
+        if root.text != "": Text {
+            text: root.text;
+            vertical-alignment: center;
+            font-size: Theme.font-size-label-s;
+            font-weight: 500;
+            color: ink;
+        }
+    }
+    ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component ArtistPage inherits Rectangle {
+    property <length> pad: 25px;
+    property <length> text-x: pad + 204px + 28px;
+
+    Rectangle {
+        y: 0;
+        height: 340px;
+        background: @linear-gradient(180deg, App.ar-tint 0%, App.ar-tint.with-alpha(0) 100%);
+    }
+
+    flick := Flickable {
+        content-height: body.preferred-height + 315px;
+
+        if App.ar-loading: Shimmer {
+            x: pad;
+            y: 77px;
+            width: 204px;
+            height: 204px;
+            border-radius: 102px;
+        }
+        Cover {
+            x: pad;
+            y: 77px;
+            width: 204px;
+            height: 204px;
+            round: true;
+            source: App.ar-cover;
+            visible: !App.ar-loading;
+            TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { App.open-cover("artist"); } }
+        }
+        Text {
+            x: text-x;
+            y: 85px;
+            text: T.t("Исполнитель");
+            font-size: Theme.font-size-label-m;
+            font-weight: 500;
+            color: Theme.controls-color-primary-text-enabled;
+        }
+        Text {
+            x: text-x;
+            y: 100px;
+            width: parent.width - text-x - pad;
+            height: 57px;
+            text: App.ar-name;
+            overflow: elide;
+            vertical-alignment: center;
+            font-family: "YS Music Headline";
+            font-size: Theme.font-size-headline-xxl;
+            font-weight: 700;
+            color: Theme.controls-color-primary-text-enabled-variant;
+        }
+        if App.ar-listeners != "": Rectangle {
+            x: text-x;
+            y: 162px;
+            width: lst.preferred-width + 32px;
+            height: 28px;
+            border-radius: 14px;
+            background: Theme.controls-color-secondary-default-enabled;
+            Icon { x: 4px; source: Icons.users; size: 18px; colorize: Theme.controls-color-primary-text-enabled-variant; }
+            lst := Text {
+                x: 26px;
+                text: App.ar-listeners;
+                font-size: Theme.font-size-label-m;
+                font-weight: 500;
+                color: Theme.controls-color-primary-text-enabled-variant;
+            }
+        }
+        HorizontalLayout {
+            x: text-x;
+            y: 222px;
+            height: 40px;
+            spacing: 12px;
+            PillAction { primary: true; icon: Icons.play-small; text: T.t("Слушать"); clicked => { App.artist-play(); } }
+            PillAction { icon: Icons.trailer-small; text: T.t("Трейлер"); clicked => { App.artist-trailer(); } }
+            PillAction { icon: App.ar-liked ? Icons.liked-small : Icons.like-small; clicked => { App.artist-like(); } }
+            PillAction { icon: App.ar-pinned ? Icons.pin-filled-small : Icons.pin-small; clicked => { App.artist-pin(); } }
+            PillAction { icon: Icons.more-small; clicked => { App.open-card("artist-more", 0); } }
+        }
+
+        body := VerticalLayout {
+            x: pad;
+            y: 315px;
+            width: parent.width - 2 * pad;
+            padding-bottom: 40px;
+            alignment: start;
+
+            // Популярные треки и справа «Новый релиз», если он есть.
+            if App.ar-popular.length > 0: Rectangle {
+                property <bool> rel: App.ar-release.length > 0;
+                property <length> tw: rel ? (self.width - 50px) * 0.6 : self.width;
+                height: max(44px + App.ar-popular.length * 56px, rel ? 44px + 204px + 76px : 0px) + 40px;
+                BlockHeader { x: 0; y: 0; text: T.t("Популярные треки"); clicked => { App.open-card("artist-tracks", 0); } }
+                if rel: Rectangle {
+                    x: parent.tw + 50px;
+                    y: 0;
+                    width: parent.width - self.x;
+                    height: parent.height;
+                    Text {
+                        x: 0;
+                        y: 0;
+                        height: 26px;
+                        text: T.t("Новый релиз");
+                        font-family: "YS Music Headline";
+                        font-size: Theme.font-size-headline-m;
+                        font-weight: 700;
+                        color: Theme.controls-color-primary-text-enabled-variant;
+                    }
+                    Cover {
+                        x: 0;
+                        y: 44px;
+                        width: 204px;
+                        height: 204px;
+                        radius: Theme.radius-size-m;
+                        source: App.ar-release[0].cover;
+                    }
+                    VerticalLayout {
+                        x: 0;
+                        y: 44px + 204px + 8px;
+                        width: parent.width;
+                        height: self.preferred-height;
+                        spacing: 2px;
+                        Text {
+                            text: App.ar-release[0].title;
+                            overflow: elide;
+                            font-size: Theme.font-size-label-m;
+                            font-weight: 500;
+                            color: Theme.controls-color-primary-text-enabled-variant;
+                        }
+                        Text {
+                            text: App.ar-release[0].subtitle;
+                            overflow: elide;
+                            font-size: Theme.font-size-label-m;
+                            font-weight: 500;
+                            color: Theme.controls-color-primary-text-enabled;
+                        }
+                        Text {
+                            text: App.ar-release[0].year;
+                            overflow: elide;
+                            font-size: Theme.font-size-label-m;
+                            font-weight: 500;
+                            color: Theme.controls-color-primary-text-enabled;
+                        }
+                    }
+                    TouchArea {
+                        x: 0;
+                        y: 44px;
+                        width: 204px;
+                        height: 204px + 70px;
+                        mouse-cursor: MouseCursor.pointer;
+                        clicked => { App.open-card("ar-release", 0); }
+                    }
+                }
+                for t[i] in App.ar-popular: TrackRow {
+                    x: 0;
+                    y: 44px + i * 56px;
+                    width: parent.tw;
+                    item: t;
+                    block: "ar-popular";
+                    index: i;
+                    current: i == App.ar-current;
+                    play => { App.artist-play-track(i); }
+                    like => { App.artist-like-track(i); }
+                }
+            }
+
+            if App.ar-familiar != "": Rectangle {
+                height: 58px + 48px;
+                Rectangle {
+                    width: 58px;
+                    height: 58px;
+                    x: 0;
+                    y: 0;
+                    border-radius: Theme.radius-size-m;
+                    background: @linear-gradient(135deg, #ff6b5c 0%, #d9365e 100%);
+                    Icon { source: Icons.note; size: 28px; colorize: #ffffff; }
+                }
+                BlockHeader { x: 70px; y: 6px; text: T.t("Знакомое вам"); clicked => { App.artist-familiar(); } }
+                Text {
+                    x: 70px;
+                    y: 34px;
+                    text: App.ar-familiar;
+                    font-size: Theme.font-size-label-s;
+                    font-weight: 500;
+                    color: Theme.controls-color-primary-text-enabled;
+                }
+                TouchArea {
+                    width: 360px;
+                    height: 58px;
+                    x: 0;
+                    y: 0;
+                    mouse-cursor: MouseCursor.pointer;
+                    clicked => { App.artist-familiar(); }
+                }
+            }
+
+            Shelf { title: T.t("Студийные альбомы"); block: "ar-studio"; items: App.ar-studio; }
+            Shelf { title: T.t("Популярные альбомы"); block: "ar-albums"; items: App.ar-albums; }
+            Shelf { title: T.t("Плейлисты"); block: "ar-playlists"; items: App.ar-playlists; }
+            Shelf { title: T.t("Сборники"); block: "ar-compilations"; items: App.ar-compilations; }
+            Shelf { title: T.t("Похожие исполнители"); block: "ar-similar"; items: App.ar-similar; }
+        }
+    }
+
+    // Шапка при прокрутке: стрелки и имя исполнителя.
+    if flick.content-y < -200px: Rectangle {
+        y: 0;
+        height: 58px;
+        background: Theme.background-color-primary-enabled-content;
+        Text {
+            x: 113px;
+            y: 16px;
+            text: App.ar-name;
+            overflow: elide;
+            width: parent.width - self.x - pad;
+            font-size: 22px;
+            font-weight: 700;
+            color: Theme.controls-color-primary-text-enabled-variant;
+        }
+    }
+    NavArrows {
+        x: pad;
+        y: 13px;
+    }
+}
