@@ -4,6 +4,7 @@ pub mod core;
 pub mod db;
 pub mod dsp;
 pub mod lyrics;
+pub mod platform;
 pub mod ui;
 
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
@@ -279,7 +280,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     });
 
-    let _engine = audio::AudioEngine::new(&device_mgr).ok();
+    let engine = audio::AudioEngine::new(&device_mgr).ok();
+    let _ducking_handle = engine.as_ref().map(|eng| {
+        platform::start_voice_activity_monitor(
+            eng.controller.clone(),
+            std::time::Duration::from_millis(50),
+        )
+    });
 
     main_window.run()?;
     Ok(())

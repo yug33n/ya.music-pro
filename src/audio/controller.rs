@@ -1,5 +1,6 @@
 use crate::audio::decoder::SymphoniaDecoder;
 use crate::audio::device::DeviceManager;
+use crate::audio::ducking::AudioDucker;
 use crate::audio::resampler::AudioResampler;
 use crate::audio::stream::{AudioOutputStream, AudioStreamError};
 use crate::dsp::{Equalizer10Band, LufsNormalizer, SlowedReverb, DEFAULT_TARGET_LUFS};
@@ -50,6 +51,9 @@ enum DecoderCommand {
     SetTrackLufs(f32),
     SetSlowedReverbEnabled(bool),
     SetSlowedSpeed(f32),
+    SetVoiceActive(bool),
+    SetDuckingEnabled(bool),
+    SetDuckingLevel(f32),
 }
 
 #[derive(Clone)]
@@ -109,6 +113,7 @@ impl AudioEngine {
                 let mut equalizer = Equalizer10Band::new(device_sample_rate);
                 let mut lufs_normalizer = LufsNormalizer::new(DEFAULT_TARGET_LUFS, device_sample_rate);
                 let mut slowed_reverb = SlowedReverb::new(device_sample_rate);
+                let mut ducker = AudioDucker::new(device_sample_rate);
 
                 loop {
                     // Check for incoming commands
@@ -213,6 +218,15 @@ impl AudioEngine {
                             DecoderCommand::SetSlowedSpeed(speed) => {
                                 slowed_reverb.set_speed(speed);
                             }
+                            DecoderCommand::SetVoiceActive(active) => {
+                                ducker.set_voice_active(active);
+                            }
+                            DecoderCommand::SetDuckingEnabled(enabled) => {
+                                ducker.set_enabled(enabled);
+                            }
+                            DecoderCommand::SetDuckingLevel(level) => {
+                                ducker.set_duck_level(level);
+                            }
                         }
                     }
 
@@ -246,6 +260,9 @@ impl AudioEngine {
 
                                 // 3. Realtime Slowed + Reverb
                                 slowed_reverb.process(&resampled_buf, &mut dsp_buf);
+
+                                // 4. Voice activity audio ducking
+                                ducker.process_interleaved_stereo(&mut dsp_buf);
 
                                 let vol = (vol_worker.load(Ordering::Relaxed) as f32) / 1000.0;
                                 for sample in &mut dsp_buf {
@@ -409,5 +426,17 @@ impl AudioController {
 
     pub fn set_slowed_speed(&self, speed: f32) {
         let _ = self.command_tx.send(DecoderCommand::SetSlowedSpeed(speed));
+    }
+
+    pub fn set_voice_active(&self, active: bool) {
+        let _ = self.command_tx.send(DecoderCommand::SetVoiceActive(active));
+    }
+
+    pub fn set_ducking_enabled(&self, enabled: bool) {
+        let _ = self.command_tx.send(DecoderCommand::SetDuckingEnabled(enabled));
+    }
+
+    pub fn set_ducking_level(&self, level: f32) {
+        let _ = self.command_tx.send(DecoderCommand::SetDuckingLevel(level));
     }
 }
