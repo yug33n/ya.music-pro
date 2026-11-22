@@ -442,7 +442,7 @@ export component LoginScreen inherits Rectangle {
     card := VerticalLayout {
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.preferred-height) / 2 + (1 - root.appear) * 16px;
-        width: 440px;
+        width: 520px;
         spacing: 0;
         alignment: start;
         Rectangle {
@@ -453,26 +453,60 @@ export component LoginScreen inherits Rectangle {
                 source: Theme.dark ? Icons.logo-dark : Icons.logo;
             }
         }
-        Rectangle { height: 32px; }
+        Rectangle { height: 20px; }
         Text {
-            text: T.t("Войдите в Яндекс Музыку");
+            text: "Добро пожаловать в ya.music-pro!";
             horizontal-alignment: center;
             font-family: "YS Music Headline";
             font-size: Theme.font-size-headline-xl;
             font-weight: 700;
             color: root.ink;
         }
-        Rectangle { height: 12px; }
+        Rectangle { height: 6px; }
         Text {
-            text: App.login-code == "" ? T.t("Нужен аккаунт Яндекса. Код для входа появится через пару секунд")
-                : T.t("Откройте ya.ru/device в браузере на компьютере или телефоне и введите код");
+            text: "Аудиофильский нативный плеер на Rust";
+            horizontal-alignment: center;
+            font-size: Theme.font-size-label-m;
+            font-weight: 500;
+            color: #FA4A32;
+        }
+        Rectangle { height: 16px; }
+        Rectangle {
+            border-radius: 14px;
+            background: Theme.dark ? #1a1a22 : #f2f2f8;
+            border-width: 1px;
+            border-color: Theme.dark ? #ffffff14 : #00000014;
+            VerticalLayout {
+                padding-left: 16px;
+                padding-right: 16px;
+                padding-top: 12px;
+                padding-bottom: 12px;
+                spacing: 6px;
+                Text {
+                    text: "✨ Главные отличия от официальной Яндекс Музыки:";
+                    font-size: Theme.font-size-label-s;
+                    font-weight: 700;
+                    color: root.ink;
+                }
+                Text {
+                    text: "• Bit-Perfect WASAPI Exclusive вывод в ЦАП без передискретизации ОС\n• 10-полосный эквалайзер, нормализация LUFS (-14 dB) и Slowed+Reverb\n• Память ~60 МБ ОЗУ (в 14 раз легче официального Electron-клиента)\n• Автоприглушение музыки при разговоре в Discord и Telegram\n• Экспорт треков в FLAC/MP3 со вшитыми тегами Lofty и караоке .lrc\n• Бесшовное воспроизведение (Gapless) и плавный Equal-Power кроссфейд";
+                    font-size: Theme.font-size-label-xs;
+                    font-weight: 400;
+                    color: root.ink2;
+                }
+            }
+        }
+        Rectangle { height: 20px; }
+        Text {
+            text: App.login-code == "" ? T.t("Код для входа появится через пару секунд...")
+                : T.t("Откройте ya.ru/device в браузере и введите код подтверждения:");
             wrap: word-wrap;
             horizontal-alignment: center;
-            font-size: Theme.font-size-label-l;
+            font-size: Theme.font-size-label-m;
             font-weight: 500;
             color: root.ink2;
         }
-        Rectangle { height: 32px; }
+        Rectangle { height: 20px; }
         Rectangle {
             height: 96px;
             border-radius: Theme.radius-size-xl;

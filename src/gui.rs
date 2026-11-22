@@ -1669,6 +1669,7 @@ pub fn run(start_hidden: bool) -> Result<(), slint::PlatformError> {
         ctx.login_start();
     } else {
         ctx.refresh_token_if_needed();
+        ctx.toast("Добро пожаловать в ya.music-pro! Bit-Perfect движок и реалтайм DSP активны.");
     }
 
     let p = player.clone();
@@ -2348,6 +2349,7 @@ impl Ctx {
         app.set_logged_out(false);
         app.set_login_code(SharedString::new());
         self.player.send(Cmd::Login(t.access));
+        self.toast("Добро пожаловать в ya.music-pro! Bit-Perfect движок и реалтайм DSP активны.");
     }
 
     /// Токен живёт около года: за месяц до конца продлеваем его в фоне.
