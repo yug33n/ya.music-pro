@@ -186,7 +186,6 @@ impl PrecacheManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::QualityBadge;
 
     fn temp_test_dir(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join("yamusic_test_cache").join(name);
