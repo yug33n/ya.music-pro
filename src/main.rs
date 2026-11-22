@@ -1,4 +1,5 @@
 pub mod api;
+pub mod audio;
 pub mod core;
 pub mod db;
 
@@ -13,6 +14,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _state = core::AppState::default();
     let _db = db::DatabaseRepository::in_memory()?;
     let _api = api::YandexApiClient::new();
+    let _device_mgr = audio::DeviceManager::new();
 
     let main_window = MainWindow::new()?;
     main_window.run()?;
