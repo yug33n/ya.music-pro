@@ -1,8 +1,10 @@
 pub mod client;
+pub mod download;
 pub mod error;
 pub mod models;
 
 pub use client::YandexApiClient;
+pub use download::{parse_download_info_xml, select_best_download_item, sign_download_url};
 pub use error::ApiError;
 pub use models::*;
 

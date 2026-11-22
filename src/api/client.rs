@@ -1,3 +1,6 @@
+use crate::api::download::{
+    parse_download_info_xml, select_best_download_item, sign_download_url, DownloadInfoItem,
+};
 use crate::api::error::ApiError;
 use crate::api::models::{
     AccountStatus, DeviceCodeResponse, TokenErrorResponse, TokenResponse, YandexApiResponse,
@@ -158,6 +161,57 @@ impl YandexApiClient {
         api_resp
             .result
             .ok_or_else(|| ApiError::Yandex("Missing account status result in response".to_string()))
+    }
+
+    /// Fetch available download formats for a track
+    pub async fn get_track_download_info(
+        &self,
+        track_id: &str,
+    ) -> Result<Vec<DownloadInfoItem>, ApiError> {
+        let url = format!("{}/tracks/{}/download-info", API_BASE_URL, track_id);
+        let headers = self.auth_headers().await?;
+
+        let resp = self
+            .http
+            .get(&url)
+            .headers(headers)
+            .send()
+            .await?
+            .error_for_status()?;
+
+        let api_resp: YandexApiResponse<Vec<DownloadInfoItem>> = resp.json().await?;
+        api_resp
+            .result
+            .ok_or_else(|| ApiError::DownloadInfoNotFound)
+    }
+
+    /// Resolve direct playable stream URL for a track (handling MD5 signing when necessary)
+    pub async fn get_track_direct_url(
+        &self,
+        track_id: &str,
+        prefer_flac: bool,
+    ) -> Result<String, ApiError> {
+        let items = self.get_track_download_info(track_id).await?;
+        let selected = select_best_download_item(&items, prefer_flac)
+            .ok_or(ApiError::DownloadInfoNotFound)?;
+
+        if selected.direct {
+            return Ok(selected.download_info_url.clone());
+        }
+
+        // Fetch XML and sign with MD5
+        let xml_resp = self
+            .http
+            .get(&selected.download_info_url)
+            .headers(self.auth_headers().await?)
+            .send()
+            .await?
+            .error_for_status()?;
+
+        let xml_text = xml_resp.text().await?;
+        let xml_info = parse_download_info_xml(&xml_text)?;
+
+        Ok(sign_download_url(&xml_info))
     }
 
     pub fn http(&self) -> &Client {
