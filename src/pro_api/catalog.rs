@@ -1,6 +1,6 @@
-use crate::api::error::ApiError;
-use crate::api::models::YandexApiResponse;
-use crate::api::YandexApiClient;
+use crate::pro_api::error::ApiError;
+use crate::pro_api::models::YandexApiResponse;
+use crate::pro_api::YandexApiClient;
 use crate::core::types::{QualityBadge, Track as CoreTrack, VibeSettings};
 use serde::{Deserialize, Serialize};
 

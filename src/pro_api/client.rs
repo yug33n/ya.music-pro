@@ -1,8 +1,8 @@
-use crate::api::download::{
+use crate::pro_api::download::{
     parse_download_info_xml, select_best_download_item, sign_download_url, DownloadInfoItem,
 };
-use crate::api::error::ApiError;
-use crate::api::models::{
+use crate::pro_api::error::ApiError;
+use crate::pro_api::models::{
     AccountStatus, DeviceCodeResponse, TokenErrorResponse, TokenResponse, YandexApiResponse,
 };
 use crate::db::DatabaseRepository;

@@ -1,4 +1,4 @@
-use crate::api::error::ApiError;
+use crate::pro_api::error::ApiError;
 use md5::{Digest, Md5};
 use serde::{Deserialize, Serialize};
 
@@ -24,7 +24,7 @@ pub struct XmlDownloadInfo {
 
 /// Parse download-info XML returned by Yandex storage
 pub fn parse_download_info_xml(xml: &str) -> Result<XmlDownloadInfo, ApiError> {
-    quick_xml::de::from_str::<XmlDownloadInfo>(xml).map_err(ApiError::from)
+    quick_xml::de::from_str::<XmlDownloadInfo>(xml).map_err(ApiError::Xml)
 }
 
 /// Sign download-info parameters using MD5 and Yandex salt to produce a direct stream URL

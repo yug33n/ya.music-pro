@@ -1,6 +1,6 @@
-use crate::api::error::ApiError;
-use crate::api::models::YandexApiResponse;
-use crate::api::YandexApiClient;
+use crate::pro_api::error::ApiError;
+use crate::pro_api::models::YandexApiResponse;
+use crate::pro_api::YandexApiClient;
 use crate::core::types::{LyricsLine, Track};
 use crate::lyrics::parser::parse_lrc;
 use serde::{Deserialize, Serialize};
@@ -76,7 +76,7 @@ impl LyricsFetcher {
         client: &YandexApiClient,
         track_id: &str,
     ) -> Result<Option<String>, ApiError> {
-        let url = format!("{}/tracks/{}/supplement", crate::api::client::API_BASE_URL, track_id);
+        let url = format!("{}/tracks/{}/supplement", crate::pro_api::client::API_BASE_URL, track_id);
         let headers = client.auth_headers().await?;
 
         let resp = client.http().get(&url).headers(headers).send().await?;
