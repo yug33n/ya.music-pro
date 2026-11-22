@@ -91,10 +91,8 @@ impl DiscordRpcService {
         }
     }
 
-    /// Build Activity payload for Discord RPC
+    /// Build Activity payload for Discord RPC without sound quality badge
     pub fn build_activity<'a>(track: &'a DiscordTrackActivity) -> activity::Activity<'a> {
-        let (badge_icon, badge_text) = Self::quality_badge_asset(track.quality);
-
         let cover_key = track
             .cover_url
             .as_deref()
@@ -102,9 +100,7 @@ impl DiscordRpcService {
 
         let assets = activity::Assets::new()
             .large_image(cover_key)
-            .large_text(&track.title)
-            .small_image(badge_icon)
-            .small_text(badge_text);
+            .large_text(&track.title);
 
         let mut act = activity::Activity::new()
             .details(&track.title)
