@@ -49,10 +49,10 @@ pub fn sign_download_url(info: &XmlDownloadInfo) -> String {
 }
 
 /// Pick the best download info item based on preference (FLAC > 320kbps MP3 > 192kbps MP3)
-pub fn select_best_download_item<'a>(
-    items: &'a [DownloadInfoItem],
+pub fn select_best_download_item(
+    items: &[DownloadInfoItem],
     prefer_flac: bool,
-) -> Option<&'a DownloadInfoItem> {
+) -> Option<&DownloadInfoItem> {
     if prefer_flac {
         if let Some(flac) = items.iter().find(|i| i.codec.eq_ignore_ascii_case("flac")) {
             return Some(flac);
