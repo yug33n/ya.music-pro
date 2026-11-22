@@ -25,7 +25,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let channels = core::CoreChannels::new(64, 128);
     let mut state = core::AppState::default();
-    let db = db::DatabaseRepository::in_memory()?;
+    let db = std::sync::Arc::new(db::DatabaseRepository::in_memory()?);
+    let _blacklist_engine = core::BlacklistEngine::new(Some(db.clone()));
     let api_client = api::YandexApiClient::new();
     let device_mgr = audio::DeviceManager::new();
 
