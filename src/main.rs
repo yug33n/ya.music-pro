@@ -2,6 +2,7 @@ pub mod api;
 pub mod audio;
 pub mod core;
 pub mod db;
+pub mod lyrics;
 pub mod ui;
 
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
