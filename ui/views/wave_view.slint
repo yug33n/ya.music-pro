@@ -13,7 +13,7 @@ export component WaveView inherits Flickable {
     callback language-selected(string);
     callback recommendation-clicked(string);
 
-    viewport-height: 820px;
+    content-height: 820px;
 
     VerticalLayout {
         padding: 32px;
@@ -76,48 +76,54 @@ export component WaveView inherits Flickable {
 
                 Rectangle {
                     height: 28px;
-                    padding-left: 10px;
-                    padding-right: 10px;
                     border-radius: 14px;
                     background: root.active-mood == "joyful" ? Theme.accent : #222222;
-                    Text {
-                        text: "Радостное";
-                        font-size: 12px;
-                        font-weight: 600;
-                        color: root.active-mood == "joyful" ? #121212 : #FFFFFF;
-                        vertical-alignment: center;
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        Text {
+                            text: "Радостное";
+                            font-size: 12px;
+                            font-weight: 600;
+                            color: root.active-mood == "joyful" ? #121212 : #FFFFFF;
+                            vertical-alignment: center;
+                        }
                     }
                     TouchArea { clicked => { root.mood-selected("joyful"); } }
                 }
 
                 Rectangle {
                     height: 28px;
-                    padding-left: 10px;
-                    padding-right: 10px;
                     border-radius: 14px;
                     background: root.active-mood == "energetic" ? Theme.accent : #222222;
-                    Text {
-                        text: "Энергичное";
-                        font-size: 12px;
-                        font-weight: 600;
-                        color: root.active-mood == "energetic" ? #121212 : #FFFFFF;
-                        vertical-alignment: center;
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        Text {
+                            text: "Энергичное";
+                            font-size: 12px;
+                            font-weight: 600;
+                            color: root.active-mood == "energetic" ? #121212 : #FFFFFF;
+                            vertical-alignment: center;
+                        }
                     }
                     TouchArea { clicked => { root.mood-selected("energetic"); } }
                 }
 
                 Rectangle {
                     height: 28px;
-                    padding-left: 10px;
-                    padding-right: 10px;
                     border-radius: 14px;
                     background: root.active-mood == "sad" ? Theme.accent : #222222;
-                    Text {
-                        text: "Спокойное";
-                        font-size: 12px;
-                        font-weight: 600;
-                        color: root.active-mood == "sad" ? #121212 : #FFFFFF;
-                        vertical-alignment: center;
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        Text {
+                            text: "Спокойное";
+                            font-size: 12px;
+                            font-weight: 600;
+                            color: root.active-mood == "sad" ? #121212 : #FFFFFF;
+                            vertical-alignment: center;
+                        }
                     }
                     TouchArea { clicked => { root.mood-selected("sad"); } }
                 }
@@ -137,48 +143,54 @@ export component WaveView inherits Flickable {
 
                 Rectangle {
                     height: 28px;
-                    padding-left: 10px;
-                    padding-right: 10px;
                     border-radius: 14px;
                     background: root.active-language == "any" ? Theme.accent : #222222;
-                    Text {
-                        text: "Любой";
-                        font-size: 12px;
-                        font-weight: 600;
-                        color: root.active-language == "any" ? #121212 : #FFFFFF;
-                        vertical-alignment: center;
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        Text {
+                            text: "Любой";
+                            font-size: 12px;
+                            font-weight: 600;
+                            color: root.active-language == "any" ? #121212 : #FFFFFF;
+                            vertical-alignment: center;
+                        }
                     }
                     TouchArea { clicked => { root.language-selected("any"); } }
                 }
 
                 Rectangle {
                     height: 28px;
-                    padding-left: 10px;
-                    padding-right: 10px;
                     border-radius: 14px;
                     background: root.active-language == "russian" ? Theme.accent : #222222;
-                    Text {
-                        text: "Русский";
-                        font-size: 12px;
-                        font-weight: 600;
-                        color: root.active-language == "russian" ? #121212 : #FFFFFF;
-                        vertical-alignment: center;
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        Text {
+                            text: "Русский";
+                            font-size: 12px;
+                            font-weight: 600;
+                            color: root.active-language == "russian" ? #121212 : #FFFFFF;
+                            vertical-alignment: center;
+                        }
                     }
                     TouchArea { clicked => { root.language-selected("russian"); } }
                 }
 
                 Rectangle {
                     height: 28px;
-                    padding-left: 10px;
-                    padding-right: 10px;
                     border-radius: 14px;
                     background: root.active-language == "foreign" ? Theme.accent : #222222;
-                    Text {
-                        text: "Иностранный";
-                        font-size: 12px;
-                        font-weight: 600;
-                        color: root.active-language == "foreign" ? #121212 : #FFFFFF;
-                        vertical-alignment: center;
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        Text {
+                            text: "Иностранный";
+                            font-size: 12px;
+                            font-weight: 600;
+                            color: root.active-language == "foreign" ? #121212 : #FFFFFF;
+                            vertical-alignment: center;
+                        }
                     }
                     TouchArea { clicked => { root.language-selected("foreign"); } }
                 }

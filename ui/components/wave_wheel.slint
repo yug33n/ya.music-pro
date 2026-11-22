@@ -76,19 +76,22 @@ export component WaveWheel inherits Rectangle {
         x: (parent.width - self.width) / 2;
         y: 12px;
         height: 32px;
-        padding-left: 14px;
-        padding-right: 14px;
         border-radius: 16px;
         background: root.active-character == "favorite" ? Theme.accent : (fav-touch.has-hover ? #2C2C2C : #1E1E1E);
         border-width: 1px;
         border-color: root.active-character == "favorite" ? Theme.accent : #333333;
 
-        Text {
-            text: "★ Любимое";
-            font-size: 12px;
-            font-weight: 700;
-            color: root.active-character == "favorite" ? #121212 : #FFFFFF;
-            vertical-alignment: center;
+        HorizontalLayout {
+            padding-left: 14px;
+            padding-right: 14px;
+
+            Text {
+                text: "★ Любимое";
+                font-size: 12px;
+                font-weight: 700;
+                color: root.active-character == "favorite" ? #121212 : #FFFFFF;
+                vertical-alignment: center;
+            }
         }
 
         fav-touch := TouchArea {
@@ -101,19 +104,22 @@ export component WaveWheel inherits Rectangle {
         x: (parent.width - self.width) / 2;
         y: parent.height - 44px;
         height: 32px;
-        padding-left: 14px;
-        padding-right: 14px;
         border-radius: 16px;
         background: root.active-character == "unfamiliar" ? Theme.accent : (unf-touch.has-hover ? #2C2C2C : #1E1E1E);
         border-width: 1px;
         border-color: root.active-character == "unfamiliar" ? Theme.accent : #333333;
 
-        Text {
-            text: "✦ Незнакомое";
-            font-size: 12px;
-            font-weight: 700;
-            color: root.active-character == "unfamiliar" ? #121212 : #FFFFFF;
-            vertical-alignment: center;
+        HorizontalLayout {
+            padding-left: 14px;
+            padding-right: 14px;
+
+            Text {
+                text: "✦ Незнакомое";
+                font-size: 12px;
+                font-weight: 700;
+                color: root.active-character == "unfamiliar" ? #121212 : #FFFFFF;
+                vertical-alignment: center;
+            }
         }
 
         unf-touch := TouchArea {
@@ -126,19 +132,22 @@ export component WaveWheel inherits Rectangle {
         x: 10px;
         y: (parent.height - self.height) / 2;
         height: 32px;
-        padding-left: 14px;
-        padding-right: 14px;
         border-radius: 16px;
         background: root.active-character == "energetic" ? Theme.accent : (ene-touch.has-hover ? #2C2C2C : #1E1E1E);
         border-width: 1px;
         border-color: root.active-character == "energetic" ? Theme.accent : #333333;
 
-        Text {
-            text: "⚡ Бодрое";
-            font-size: 12px;
-            font-weight: 700;
-            color: root.active-character == "energetic" ? #121212 : #FFFFFF;
-            vertical-alignment: center;
+        HorizontalLayout {
+            padding-left: 14px;
+            padding-right: 14px;
+
+            Text {
+                text: "⚡ Бодрое";
+                font-size: 12px;
+                font-weight: 700;
+                color: root.active-character == "energetic" ? #121212 : #FFFFFF;
+                vertical-alignment: center;
+            }
         }
 
         ene-touch := TouchArea {
@@ -151,19 +160,22 @@ export component WaveWheel inherits Rectangle {
         x: parent.width - self.width - 10px;
         y: (parent.height - self.height) / 2;
         height: 32px;
-        padding-left: 14px;
-        padding-right: 14px;
         border-radius: 16px;
         background: root.active-character == "calm" ? Theme.accent : (calm-touch.has-hover ? #2C2C2C : #1E1E1E);
         border-width: 1px;
         border-color: root.active-character == "calm" ? Theme.accent : #333333;
 
-        Text {
-            text: "☕ Спокойное";
-            font-size: 12px;
-            font-weight: 700;
-            color: root.active-character == "calm" ? #121212 : #FFFFFF;
-            vertical-alignment: center;
+        HorizontalLayout {
+            padding-left: 14px;
+            padding-right: 14px;
+
+            Text {
+                text: "☕ Спокойное";
+                font-size: 12px;
+                font-weight: 700;
+                color: root.active-character == "calm" ? #121212 : #FFFFFF;
+                vertical-alignment: center;
+            }
         }
 
         calm-touch := TouchArea {
