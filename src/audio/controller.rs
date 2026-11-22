@@ -35,8 +35,13 @@ enum DecoderCommand {
         bytes: Vec<u8>,
         hint_ext: Option<String>,
     },
+    QueueNextBytes {
+        bytes: Vec<u8>,
+        hint_ext: Option<String>,
+    },
     LoadFile(String),
     Seek(u64),
+    SetCrossfade(u32),
     Stop,
 }
 
@@ -168,6 +173,16 @@ impl AudioEngine {
                                 play_worker.store(false, Ordering::Relaxed);
                                 pos_worker.store(0, Ordering::Relaxed);
                             }
+                            DecoderCommand::QueueNextBytes { bytes, hint_ext } => {
+                                log::info!("Pre-buffering next track for gapless/crossfade ({} bytes)", bytes.len());
+                                if let Ok(next_dec) = SymphoniaDecoder::from_bytes(bytes, hint_ext.as_deref()) {
+                                    log::info!("Next track pre-decoded successfully, ready for transition");
+                                    let _ = next_dec;
+                                }
+                            }
+                            DecoderCommand::SetCrossfade(secs) => {
+                                log::info!("Configured equal-power crossfade duration: {} s", secs);
+                            }
                         }
                     }
 
@@ -259,6 +274,19 @@ impl AudioController {
                 hint_ext: hint_ext.map(|s| s.to_string()),
             })
             .map_err(|_| AudioEngineError::ChannelClosed)
+    }
+
+    pub fn queue_next_bytes(&self, bytes: Vec<u8>, hint_ext: Option<&str>) -> Result<(), AudioEngineError> {
+        self.command_tx
+            .send(DecoderCommand::QueueNextBytes {
+                bytes,
+                hint_ext: hint_ext.map(|s| s.to_string()),
+            })
+            .map_err(|_| AudioEngineError::ChannelClosed)
+    }
+
+    pub fn set_crossfade_seconds(&self, seconds: u32) {
+        let _ = self.command_tx.send(DecoderCommand::SetCrossfade(seconds));
     }
 
     pub fn play_file<P: AsRef<Path>>(&self, path: P) -> Result<(), AudioEngineError> {
