@@ -1,0 +1,480 @@
+// Альбом, плейлист и «Мне нравится»: шапка, список треков, редактирование плейлиста.
+
+import { Theme } from "theme.slint";
+import { Icons, Icon, Cover, Shimmer, NavArrows, Field, ArtistLinks } from "widgets.slint";
+import { T, App, TrackItem } from "state.slint";
+import { TrackRow, AlbumTrackRow } from "rows.slint";
+
+component HeaderButton inherits Rectangle {
+    in property <image> icon;
+    in property <string> text;
+    in property <bool> primary;
+    callback clicked;
+    height: 40px;
+    width: text == "" ? 40px : label.preferred-width + 20px + 4px + 40px;
+    border-radius: self.height / 2;
+    background: primary
+        ? (ta.pressed ? Theme.controls-color-primary-default-pressed : ta.has-hover ? Theme.controls-color-primary-default-hovered : Theme.controls-color-primary-default-enabled)
+        : (ta.pressed ? Theme.controls-color-secondary-default-pressed : ta.has-hover ? Theme.controls-color-secondary-default-hovered : Theme.controls-color-secondary-default-enabled);
+    animate background { duration: App.motion ? Theme.duration-transition : 0ms; }
+    property <brush> ink: primary ? Theme.controls-color-primary-on-default-enabled : Theme.controls-color-secondary-on-default-enabled;
+    Icon {
+        x: text == "" ? 10px : 20px;
+        source: icon;
+        size: 20px;
+        colorize: ink;
+    }
+    label := Text {
+        x: 44px;
+        text: root.text;
+        font-size: Theme.font-size-label-s;
+        font-weight: 500;
+        color: ink;
+        visible: root.text != "";
+    }
+    ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component ListPage inherits Rectangle {
+    property <bool> album: App.list-kind == "album";
+    property <bool> likes: App.list-kind == "likes";
+    property <bool> playlist: App.list-kind == "playlist";
+    // Все популярные треки исполнителя: шапка как у «Мне нравится», без описания.
+    property <bool> artist: App.list-kind == "artist";
+    property <bool> short-head: likes || artist;
+    property <length> pad: 25px;
+    property <length> text-x: pad + 204px + 28px;
+    // Шапка: подпись 85, название 100, строки метаданных, кнопки.
+    // Описание плейлиста переносится (до трёх строк) и сдвигает всё, что ниже.
+    property <length> desc-extra: playlist ? max(0px, desc.height - one-line.preferred-height) : 0px;
+    property <bool> own: playlist && App.list-own;
+    // В режиме правки поле названия на 8 px ниже обычного заголовка, всё ниже сдвигается на 8 px;
+    // при правке описания под полем 120 px текста и кнопки «Сохранить» / «Отменить».
+    property <length> edit-shift: App.list-edit == 1 ? 8px : 0px;
+    property <length> buttons-y: album ? 219px : short-head ? 214px : App.list-edit == 2 ? 426px : 242px + desc-extra + edit-shift;
+    property <length> search-y: buttons-y + (short-head ? 90px : 79px);
+    property <length> rows-y: album ? buttons-y + 94px : search-y + 57px;
+    property <length> row-x: playlist && App.list-own ? pad + 12px : pad;
+    property <length> row-h: 56px;
+
+    Rectangle {
+        y: 0;
+        height: 340px;
+        background: @linear-gradient(180deg, App.list-tint 0%, App.list-tint.with-alpha(0) 100%);
+    }
+
+    flick := Flickable {
+        content-height: rows-y + App.tracks.length * row-h + (album && App.list-label != "" ? 80px : 32px);
+        property <int> first: max(0, floor((-self.content-y - rows-y) / row-h));
+        property <int> shown-rows: min(App.tracks.length - first, ceil(self.height / row-h) + 2);
+
+        Cover {
+            x: pad;
+            y: 77px;
+            width: 204px;
+            height: 204px;
+            radius: Theme.radius-size-m;
+            round: artist;
+            source: App.list-cover;
+            cover-ta := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { App.open-cover("list"); } }
+            if own && (cover-ta.has-hover || poster-ta.has-hover): Rectangle {
+                x: (parent.width - self.width) / 2;
+                y: 156px;
+                width: poster.preferred-width + 32px;
+                height: 32px;
+                border-radius: 16px;
+                background: #1a1a1ae6;
+                poster := Text {
+                    text: App.list-cover.width > 0 ? T.t("Изменить обложку") : T.t("Добавить обложку");
+                    font-size: Theme.font-size-label-m;
+                    font-weight: 500;
+                    color: #ffffff;
+                }
+            }
+            poster-ta := TouchArea {
+                x: 18px;
+                y: 156px;
+                width: 168px;
+                height: 32px;
+                enabled: own;
+                mouse-cursor: MouseCursor.pointer;
+                clicked => { App.list-change-cover(); }
+            }
+        }
+
+        Text {
+            x: text-x;
+            y: 85px;
+            text: App.list-kind-label;
+            font-size: Theme.font-size-label-m;
+            font-weight: 500;
+            color: Theme.controls-color-primary-text-enabled;
+        }
+        title := Text {
+            x: text-x;
+            y: 100px;
+            visible: App.list-edit == 0;
+            width: min(self.preferred-width, parent.width - text-x - pad - (playlist && App.list-own ? 56px : 0px));
+            height: 57px;
+            text: App.list-title;
+            overflow: elide;
+            vertical-alignment: center;
+            font-family: "YS Music Headline";
+            font-size: Theme.font-size-headline-xxl;
+            font-weight: 700;
+            color: Theme.controls-color-primary-text-enabled-variant;
+        }
+        title-ta := TouchArea {
+            x: text-x;
+            y: 100px;
+            width: title.width + 56px;
+            height: 57px;
+            enabled: own && App.list-edit == 0;
+        }
+        if own && App.list-edit == 0 && title-ta.has-hover: Rectangle {
+            x: text-x + title.width + 16px;
+            y: 109px;
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            background: pencil-ta.has-hover ? Theme.controls-color-secondary-default-hovered : Theme.controls-color-secondary-default-enabled;
+            Icon { source: Icons.pencil; size: 20px; colorize: Theme.controls-color-secondary-on-default-enabled; }
+            pencil-ta := TouchArea {
+                mouse-cursor: MouseCursor.pointer;
+                clicked => { root.edit-title(); }
+            }
+        }
+        if App.list-edit > 0: Rectangle {
+            x: text-x;
+            y: 105px;
+            width: parent.width - text-x - 43px;
+            height: 57px;
+            border-radius: 2px;
+            border-width: 1.6px;
+            border-color: Theme.controls-color-primary-text-enabled;
+        }
+        title-field := Field {
+            x: text-x + 2px;
+            y: 105px;
+            width: parent.width - text-x - 47px;
+            height: 57px;
+            visible: App.list-edit > 0;
+            enabled: App.list-edit > 0;
+            single-line: true;
+            vertical-alignment: center;
+            font-family: "YS Music Headline";
+            font-size: Theme.font-size-headline-xxl;
+            font-weight: 700;
+            color: Theme.controls-color-primary-text-enabled-variant;
+            escape => { App.list-edit = 0; }
+            accepted => {
+                if App.list-edit == 1 {
+                    App.list-edit = 0;
+                    App.list-save-title(self.text);
+                }
+            }
+            edited => {
+                if self.text.character-count > 100 {
+                    self.undo();
+                }
+            }
+        }
+
+        if album: HorizontalLayout {
+            x: text-x;
+            y: 166px;
+            width: self.preferred-width;
+            height: 20px;
+            spacing: 6px;
+            Cover { width: 20px; height: 20px; round: true; source: App.list-artist-cover; }
+            ArtistLinks {
+                width: self.content-width;
+                names: App.list-artists;
+                font-size: Theme.font-size-label-m;
+                ink: Theme.controls-color-primary-text-enabled;
+                ink-hover: Theme.controls-color-primary-text-hovered;
+                clicked(i) => { App.list-open-artist(i); }
+            }
+            if App.list-year != "": Text {
+                text: "  •  " + App.list-year;
+                vertical-alignment: center;
+                font-size: Theme.font-size-label-m;
+                font-weight: 500;
+                color: Theme.controls-color-primary-text-enabled;
+            }
+        }
+        one-line := Text {
+            visible: false;
+            text: "Ag";
+            font-size: Theme.font-size-label-m;
+            font-weight: 500;
+        }
+        desc := Text {
+            visible: playlist && App.list-edit != 2;
+            x: text-x;
+            y: 162px + edit-shift;
+            width: parent.width - text-x - pad;
+            height: playlist ? min(self.preferred-height, 3 * one-line.preferred-height) : 0px;
+            text: App.list-desc;
+            wrap: word-wrap;
+            overflow: elide;
+            font-size: Theme.font-size-label-m;
+            font-weight: 500;
+            color: own && desc-ta.has-hover ? Theme.controls-color-primary-text-enabled-variant : Theme.controls-color-primary-text-enabled;
+            desc-ta := TouchArea {
+                enabled: own;
+                mouse-cursor: MouseCursor.pointer;
+                clicked => { root.edit-desc(); }
+            }
+        }
+        if App.list-edit == 2: Rectangle {
+            x: text-x;
+            y: 168px;
+            width: parent.width - text-x - 43px;
+            height: 122px;
+            border-radius: 2px;
+            border-width: 1.6px;
+            border-color: Theme.controls-color-primary-text-enabled;
+            if desc-field.text == "": Text {
+                x: 2px;
+                y: 2px;
+                text: T.t("Добавить описание") + "...";
+                font-size: Theme.font-size-label-m;
+                font-weight: 500;
+                color: Theme.controls-color-primary-text-enabled;
+            }
+        }
+        desc-field := Field {
+            x: text-x + 2px;
+            y: 170px;
+            width: parent.width - text-x - 47px;
+            height: 118px;
+            visible: App.list-edit == 2;
+            enabled: App.list-edit == 2;
+            single-line: false;
+            wrap: word-wrap;
+            escape => { App.list-edit = 0; }
+            font-size: Theme.font-size-label-m;
+            font-weight: 500;
+            color: Theme.controls-color-primary-text-enabled-variant;
+            edited => {
+                if self.text.character-count > 1000 {
+                    self.undo();
+                }
+            }
+        }
+        if App.list-edit == 2: Rectangle {
+            x: text-x;
+            y: 302px;
+            width: 114px;
+            height: 40px;
+            border-radius: 20px;
+            background: save-ta.has-hover ? Theme.controls-color-secondary-default-hovered : Theme.controls-color-secondary-default-enabled;
+            Text { text: T.t("Сохранить"); font-size: Theme.font-size-label-s; font-weight: 500; color: Theme.controls-color-secondary-on-default-enabled; }
+            save-ta := TouchArea {
+                mouse-cursor: MouseCursor.pointer;
+                clicked => {
+                    App.list-edit = 0;
+                    if title-field.text != App.list-title {
+                        App.list-save-title(title-field.text);
+                    }
+                    App.list-save-desc(desc-field.text);
+                }
+            }
+        }
+        if App.list-edit == 2: Rectangle {
+            x: text-x + 137px;
+            y: 302px;
+            width: 66px;
+            height: 40px;
+            Text {
+                text: T.t("Отменить");
+                font-size: Theme.font-size-label-m;
+                font-weight: 500;
+                color: cancel-ta.has-hover ? Theme.controls-color-primary-text-enabled-variant : Theme.controls-color-primary-text-enabled;
+            }
+            cancel-ta := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { App.list-edit = 0; } }
+        }
+        if !album: Text {
+            x: text-x;
+            y: short-head ? 162px : App.list-edit == 2 ? 374px : 190px + desc-extra + edit-shift;
+            width: parent.width - text-x - pad;
+            text: App.list-meta;
+            overflow: elide;
+            font-size: Theme.font-size-label-m;
+            font-weight: 500;
+            color: Theme.controls-color-primary-text-enabled;
+        }
+
+        HorizontalLayout {
+            x: text-x;
+            y: buttons-y;
+            height: 40px;
+            spacing: 12px;
+            HeaderButton { primary: true; icon: Icons.play-small; text: T.t("Слушать"); clicked => { App.play-list(0); } }
+            if playlist: HeaderButton { icon: Icons.trailer-small; text: T.t("Трейлер"); clicked => { App.list-trailer(); } }
+            if album: HeaderButton { icon: App.list-liked ? Icons.liked-small : Icons.like-small; text: App.list-likes; clicked => { App.list-like(); } }
+            if playlist: HeaderButton { icon: App.list-liked ? Icons.liked-small : Icons.like-small; text: App.list-likes; clicked => { App.list-like(); } }
+            HeaderButton { icon: App.pinned ? Icons.pin-filled-small : Icons.pin-small; clicked => { App.list-pin(); } }
+            if !artist: HeaderButton {
+                icon: Icons.more-small;
+                clicked => { App.open-list-menu(self.absolute-position.x + self.width / 2, self.absolute-position.y + self.height); }
+            }
+            if likes: HeaderButton { icon: Icons.download-small; clicked => { App.list-download(); } }
+        }
+        if playlist && App.list-own: Rectangle {
+            x: parent.width - 45px - self.width;
+            y: buttons-y;
+            width: upload.preferred-width + 48px;
+            height: 38px;
+            border-radius: self.height / 2;
+            background: up-ta.has-hover ? Theme.controls-color-secondary-default-hovered : Theme.controls-color-secondary-default-enabled;
+            animate background { duration: App.motion ? 150ms : 0ms; }
+            upload := Text {
+                text: T.t("Загрузить трек");
+                font-size: Theme.font-size-label-s;
+                font-weight: 500;
+                color: Theme.controls-color-secondary-on-default-enabled;
+            }
+            up-ta := TouchArea { mouse-cursor: MouseCursor.pointer; }
+        }
+
+        if !album: Rectangle {
+            x: pad;
+            y: search-y;
+            width: parent.width - pad - 47px;
+            height: 34px;
+            border-radius: 17px;
+            border-width: 1px;
+            border-color: field.has-focus ? Theme.controls-color-secondary-outline-hovered-stroke : Theme.controls-color-secondary-outline-enabled-stroke;
+            Icon { x: 12px; source: Icons.search; size: 24px; colorize: Theme.controls-color-secondary-outline-enabled-stroke; }
+            if App.list-filter == "": Text {
+                x: 44px;
+                text: T.t("Поиск трека");
+                font-size: Theme.font-size-label-m;
+                font-weight: 500;
+                color: Theme.controls-color-primary-text-enabled;
+            }
+            field := Field {
+                x: 44px;
+                width: parent.width - 80px;
+                text <=> App.list-filter;
+                font-size: Theme.font-size-label-m;
+                font-weight: 500;
+                color: Theme.controls-color-primary-text-enabled-variant;
+                vertical-alignment: center;
+                edited => { App.filter-changed(self.text); }
+            }
+            if App.list-filter != "": Icon {
+                x: parent.width - 32px;
+                source: Icons.close-small;
+                size: 20px;
+                colorize: Theme.controls-color-secondary-on-outline-enabled-variant;
+                TouchArea {
+                    mouse-cursor: MouseCursor.pointer;
+                    clicked => {
+                        App.list-filter = "";
+                        App.filter-changed("");
+                    }
+                }
+            }
+        }
+
+        if App.list-loading: Rectangle {
+            x: row-x;
+            y: rows-y;
+            width: parent.width - row-x - 33px;
+            height: 8 * row-h;
+            for i in 8: Shimmer {
+                x: 0;
+                y: i * row-h + 8px;
+                width: 40px;
+                height: 40px;
+                border-radius: Theme.radius-size-s;
+            }
+        }
+
+        for k in max(0, shown-rows): Rectangle {
+            property <int> idx: flick.first + k;
+            x: row-x;
+            y: rows-y + idx * row-h;
+            width: parent.width - row-x - 33px;
+            height: row-h;
+            init => { App.request-cover(idx); }
+            changed idx => { App.request-cover(idx); }
+            if !album: TrackRow {
+                width: parent.width;
+                item: App.tracks[idx];
+                block: "list";
+                index: idx;
+                current: idx == App.list-current;
+                removable: own;
+                play => { App.play-list(idx); }
+                like => { App.like-track(idx); }
+                remove => { App.list-remove-track(idx); }
+            }
+            if album: AlbumTrackRow {
+                width: parent.width;
+                item: App.tracks[idx];
+                current: idx == App.list-current;
+                pos: idx + 1;
+                block: "list";
+                index: idx;
+                play => { App.play-list(idx); }
+                like => { App.like-track(idx); }
+            }
+        }
+
+        if album && App.list-label != "": HorizontalLayout {
+            x: pad;
+            width: self.preferred-width;
+            y: rows-y + App.tracks.length * row-h + 24px;
+            height: 21px;
+            spacing: 3px;
+            Text { text: T.t("Лейбл:"); font-size: Theme.font-size-label-s; color: Theme.controls-color-primary-text-enabled; vertical-alignment: center; }
+            Text { text: App.list-label; font-size: Theme.font-size-label-s; font-weight: 500; color: Theme.controls-color-primary-text-enabled-variant; vertical-alignment: center; }
+        }
+    }
+
+    NavArrows {
+        x: pad;
+        y: 13px;
+    }
+
+    function edit-title() {
+        title-field.text = App.list-title;
+        App.list-edit = 1;
+        title-field.focus();
+        title-field.select-all();
+    }
+
+    function edit-desc() {
+        if App.list-edit == 0 {
+            title-field.text = App.list-title;
+        }
+        desc-field.text = App.list-desc-raw;
+        App.list-edit = 2;
+        desc-field.focus();
+    }
+
+    // Потеря фокуса полем названия сохраняет его, как в оригинале; Esc отменяет правку.
+    changed has-title-focus => {
+        if !has-title-focus && App.list-edit == 1 {
+            App.list-edit = 0;
+            App.list-save-title(title-field.text);
+        }
+    }
+    property <bool> has-title-focus: title-field.has-focus;
+    property <int> edit-request: App.list-edit-request;
+    changed edit-request => {
+        if edit-request == 1 {
+            edit-title();
+        } else if edit-request == 2 {
+            edit-desc();
+        }
+        App.list-edit-request = 0;
+    }
+}

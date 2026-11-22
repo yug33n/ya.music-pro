@@ -1,0 +1,385 @@
+// Общие элементы: иконки из sprite.svg, кнопки, обложки, поле ввода, заглушки загрузки.
+
+import { Theme } from "theme.slint";
+import { App } from "state.slint";
+
+// Картинки задаёт Rust при запуске из спрайта официального приложения.
+export global Icons {
+    in property <image> logo;
+    in property <image> logo-dark;
+    // Знак без надписи — для свёрнутого навбара.
+    in property <image> logo-mark;
+    in property <image> logo-mark-dark;
+    in property <image> nav-search;
+    in property <image> nav-wave;
+    in property <image> nav-trends;
+    in property <image> nav-trends-selected;
+    in property <image> nav-concerts;
+    in property <image> nav-concerts-selected;
+    in property <image> nav-nonmusic;
+    in property <image> nav-nonmusic-selected;
+    in property <image> nav-collection;
+    in property <image> nav-collection-selected;
+    in property <image> play;
+    in property <image> pause;
+    in property <image> next;
+    in property <image> prev;
+    in property <image> like;
+    in property <image> liked;
+    in property <image> dislike;
+    in property <image> shuffle;
+    in property <image> repeat;
+    in property <image> repeat-one;
+    in property <image> lyrics;
+    in property <image> queue;
+    in property <image> settings;
+    in property <image> volume;
+    in property <image> volume-off;
+    in property <image> more;
+    // Меню профиля: иконки с сайта Яндекс ID (src/yandex_id.rs).
+    in property <image> id-logo;
+    in property <image> id-logo-dark;
+    in property <image> id-check;
+    in property <image> id-close;
+    in property <image> id-account;
+    in property <image> id-settings;
+    in property <image> id-support;
+    in property <image> id-language;
+    in property <image> id-appearance;
+    in property <image> id-dark;
+    in property <image> id-system;
+    in property <image> search;
+    in property <image> arrow-left;
+    in property <image> arrow-right;
+    in property <image> pin;
+    in property <image> trailer;
+    in property <image> explicit;
+    in property <image> plus-badge;
+    in property <image> add;
+    in property <image> note;
+    in property <image> more-small;
+    in property <image> prev-small;
+    in property <image> next-small;
+    in property <image> play-filled;
+    in property <image> pause-filled;
+    in property <image> play-small;
+    in property <image> trailer-small;
+    in property <image> like-small;
+    in property <image> liked-small;
+    in property <image> pin-small;
+    in property <image> pin-filled-small;
+    in property <image> arrow-left-small;
+    in property <image> arrow-right-small;
+    in property <image> exclamation;
+    in property <image> close-small;
+    in property <image> bucket-small;
+    in property <image> more-xs;
+    in property <image> play-big;
+    in property <image> pause-big;
+    in property <image> pause-filled-xs;
+    in property <image> play-filled-xs;
+    in property <image> crown;
+    in property <image> chart-up;
+    in property <image> chart-down;
+    in property <image> chart-new;
+    in property <image> chart-same;
+    in property <image> add-large;
+    in property <image> pencil;
+    in property <image> download-small;
+    in property <image> fullscreen;
+    in property <image> arrow-down;
+    in property <image> queue-m;
+    in property <image> lyrics-m;
+    in property <image> more-m;
+    in property <image> like-m;
+    in property <image> liked-m;
+    in property <image> play-m;
+    in property <image> pause-m;
+    in property <image> repeat-small;
+    in property <image> repeat-one-small;
+    in property <image> users;
+    in property <image> m-like;
+    in property <image> m-trailer;
+    in property <image> m-vibe;
+    in property <image> m-download;
+    in property <image> m-play-next;
+    in property <image> m-play-last;
+    in property <image> m-dislike;
+    in property <image> m-add-playlist;
+    in property <image> m-lyrics;
+    in property <image> m-share;
+    in property <image> m-pin;
+    in property <image> m-unpin;
+    in property <image> m-link;
+    in property <image> m-code;
+    in property <image> m-album;
+    in property <image> m-artist;
+    in property <image> m-info;
+    in property <image> m-complain;
+    in property <image> m-liked;
+    in property <image> link;
+    in property <image> check;
+    in property <image> history-m;
+    in property <image> ruble;
+    in property <image> arrow-down-tiny;
+    in property <image> play-xxs;
+    in property <image> play-filled-m;
+    in property <image> like-variant;
+    in property <image> play-filled-xl;
+    in property <image> edit;
+    in property <image> close-xs;
+    in property <image> upload;
+}
+
+export component Icon inherits Image {
+    in property <length> size: 24px;
+    width: size;
+    height: size;
+    image-fit: contain;
+}
+
+export component IconButton inherits Rectangle {
+    in property <image> icon;
+    in property <length> size: 24px;
+    in property <brush> tint: Theme.controls-color-secondary-on-outline-enabled;
+    in property <brush> hover-color: Theme.controls-color-primary-text-enabled-variant;
+    in property <bool> enabled: true;
+    callback clicked;
+    width: size + 8px;
+    height: size + 8px;
+    Icon {
+        source: icon;
+        size: size;
+        colorize: !enabled ? Theme.controls-color-primary-default-disabled : ta.has-hover ? hover-color : tint;
+        animate colorize { duration: App.motion ? Theme.duration-transition : 0ms; }
+    }
+    ta := TouchArea {
+        enabled: enabled;
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// Круглая кнопка на сером фоне (лайк, закреп, «ещё» в шапке страницы).
+export component CircleButton inherits Rectangle {
+    in property <image> icon;
+    in property <length> diameter: 40px;
+    in property <length> icon-size: 24px;
+    in property <brush> icon-color: Theme.controls-color-secondary-on-default-enabled;
+    callback clicked;
+    width: diameter;
+    height: diameter;
+    border-radius: diameter / 2;
+    background: ta.pressed ? Theme.controls-color-secondary-default-pressed
+        : ta.has-hover ? Theme.controls-color-secondary-default-hovered
+        : Theme.controls-color-secondary-default-enabled;
+    animate background { duration: App.motion ? Theme.duration-transition : 0ms; }
+    Icon { source: icon; size: icon-size; colorize: icon-color; }
+    ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component PillButton inherits Rectangle {
+    in property <string> text;
+    in property <image> icon;
+    in property <bool> has-icon;
+    in property <bool> primary;
+    callback clicked;
+    height: 40px;
+    width: label.preferred-width + (has-icon ? 24px + 4px : 0px) + 2 * 16px;
+    border-radius: self.height / 2;
+    background: primary
+        ? (ta.pressed ? Theme.controls-color-primary-default-pressed : ta.has-hover ? Theme.controls-color-primary-default-hovered : Theme.controls-color-primary-default-enabled)
+        : (ta.pressed ? Theme.controls-color-secondary-default-pressed : ta.has-hover ? Theme.controls-color-secondary-default-hovered : Theme.controls-color-secondary-default-enabled);
+    animate background { duration: App.motion ? Theme.duration-transition : 0ms; }
+    HorizontalLayout {
+        alignment: center;
+        spacing: 4px;
+        if has-icon: Icon {
+            y: (parent.height - self.height) / 2;
+            source: icon;
+            size: 24px;
+            colorize: primary ? Theme.controls-color-primary-on-default-enabled : Theme.controls-color-secondary-on-default-enabled;
+        }
+        label := Text {
+            text: root.text;
+            vertical-alignment: center;
+            font-size: Theme.font-size-label-m;
+            font-weight: 500;
+            color: primary ? Theme.controls-color-primary-on-default-enabled : Theme.controls-color-secondary-on-default-enabled;
+        }
+    }
+    ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component Shimmer inherits Rectangle {
+    background: Theme.background-color-primary-enabled-shimmer;
+}
+
+// Обложка с image-fit: cover. Если картинка декодирована под экран (±2%), она рисуется
+// без сглаживания: вид тот же, а билинейной выборки на каждом кадре нет. Иначе — сглаживание.
+export component Pic inherits Image {
+    image-fit: cover;
+    property <float> ratio: max(self.width / 1px * App.dpr / max(1, self.source.width), self.height / 1px * App.dpr / max(1, self.source.height));
+    image-rendering: self.ratio > 0.98 && self.ratio < 1.02 ? pixelated : smooth;
+}
+
+export component Cover inherits Rectangle {
+    in property <image> source;
+    in property <length> radius: Theme.radius-size-m;
+    in property <bool> round;
+    // Прозрачность картинки без слоя: opacity на самой Cover в Skia стоит отдельного слоя.
+    in property <float> alpha: 1;
+    border-radius: round ? self.width / 2 : radius;
+    clip: true;
+    // Заглушка только до загрузки: под картинкой полупрозрачная заливка — лишний проход по пикселям.
+    background: root.source.width > 0 ? transparent : Theme.controls-color-secondary-default-enabled;
+    Pic {
+        width: parent.width;
+        height: parent.height;
+        source: root.source;
+        opacity: root.alpha;
+    }
+}
+
+// Поле ввода: Ctrl+A/C/V/X/Z работают и на русской раскладке.
+export component Field inherits TextInput {
+    selection-background-color: #5c8ff566;
+    selection-foreground-color: self.color;
+    callback escape();
+    key-pressed(e) => {
+        if e.text == Key.Escape {
+            self.escape();
+            return reject;
+        }
+        if !e.modifiers.control || e.modifiers.alt {
+            return reject;
+        }
+        if e.text == "ф" || e.text == "Ф" || e.text == "a" || e.text == "A" {
+            self.select-all();
+            return accept;
+        }
+        if e.text == "с" || e.text == "С" {
+            self.copy();
+            return accept;
+        }
+        if e.text == "м" || e.text == "М" {
+            self.paste();
+            return accept;
+        }
+        if e.text == "ч" || e.text == "Ч" {
+            self.cut();
+            return accept;
+        }
+        if e.text == "я" || e.text == "Я" {
+            self.undo();
+            return accept;
+        }
+        reject
+    }
+}
+
+// Исполнители через запятую, каждый открывается отдельно.
+export component ArtistLinks inherits Rectangle {
+    in property <[string]> names;
+    in property <length> font-size: Theme.font-size-label-m;
+    in property <brush> ink: Theme.controls-color-primary-text-enabled;
+    in property <brush> ink-hover: Theme.controls-color-primary-text-enabled-variant;
+    in property <bool> links: true;
+    out property <length> content-width: row.preferred-width;
+    callback clicked(int);
+    clip: true;
+    row := HorizontalLayout {
+        alignment: start;
+        for n[i] in root.names: Text {
+            text: i < root.names.length - 1 ? n + ", " : n;
+            vertical-alignment: center;
+            horizontal-stretch: 0;
+            font-size: root.font-size;
+            font-weight: 500;
+            color: ta.has-hover && root.links ? root.ink-hover : root.ink;
+            animate color { duration: App.motion ? Theme.duration-transition : 0ms; }
+            ta := TouchArea {
+                enabled: root.links;
+                mouse-cursor: MouseCursor.pointer;
+                clicked => { root.clicked(i); }
+            }
+        }
+    }
+}
+
+// Значок «!» у трека с ограничением: при наведении показывает пояснение.
+export component ExplicitMark inherits Rectangle {
+    in property <brush> ink: Theme.controls-color-primary-text-enabled;
+    in property <length> size: 18px;
+    width: size;
+    height: size;
+    Image {
+        width: root.size;
+        height: root.size;
+        source: Icons.exclamation;
+        colorize: ta.has-hover ? Theme.controls-color-primary-text-enabled-variant : root.ink;
+        image-fit: contain;
+    }
+    ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        changed has-hover => {
+            if self.has-hover {
+                App.hint-x = root.absolute-position.x + root.width / 2;
+                App.hint-y = root.absolute-position.y;
+                App.hint-open = true;
+            } else {
+                App.hint-open = false;
+            }
+        }
+        clicked => {
+            App.hint-x = root.absolute-position.x + root.width / 2;
+            App.hint-y = root.absolute-position.y;
+            App.hint-open = true;
+        }
+    }
+}
+
+export component NavCircle inherits Rectangle {
+    in property <image> icon;
+    in property <bool> enabled: true;
+    callback clicked;
+    width: 32px;
+    height: 32px;
+    border-radius: 16px;
+    background: !enabled ? Theme.controls-color-secondary-default-disabled : ta.has-hover ? Theme.controls-color-secondary-default-hovered : Theme.controls-color-secondary-default-enabled;
+    animate background { duration: App.motion ? 150ms : 0ms; }
+    Icon { source: icon; size: 20px; colorize: enabled ? Theme.controls-color-secondary-on-default-enabled : Theme.controls-color-secondary-on-default-disabled; }
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// Назад и вперёд по истории, как в браузере.
+export component NavArrows inherits HorizontalLayout {
+    spacing: 8px;
+    NavCircle { icon: Icons.arrow-left-small; enabled: App.can-back; clicked => { App.go-back(); } }
+    NavCircle { icon: Icons.arrow-right-small; enabled: App.can-forward; clicked => { App.go-forward(); } }
+}
+
+// Плавное появление содержимого: страницы, меню, окна. Работает при создании элемента.
+export component Fade inherits Rectangle {
+    in property <length> rise: 0px;
+    property <float> k: App.motion ? 0 : 1;
+    init => { k = 1; }
+    animate k { duration: App.motion ? 220ms : 0ms; easing: ease-out; }
+    Rectangle {
+        y: (1 - root.k) * root.rise;
+        width: root.width;
+        height: root.height;
+        opacity: root.k;
+        @children
+    }
+}

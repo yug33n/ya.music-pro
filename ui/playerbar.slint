@@ -1,0 +1,378 @@
+// Нижний плеер.
+
+import { Theme } from "theme.slint";
+import { Icons, Icon, Cover, ArtistLinks, ExplicitMark } from "widgets.slint";
+import { App } from "state.slint";
+import { VolumePopup } from "popups.slint";
+
+component BarButton inherits Rectangle {
+    in property <image> icon;
+    in property <length> icon-size: 24px;
+    in property <bool> enabled: true;
+    in property <bool> active;
+    in property <brush> ink: #ffffff80;
+    in property <brush> ink-hover: #ffffffe6;
+    in property <brush> ink-off: #ffffff14;
+    out property <bool> hovered: ta.has-hover;
+    callback clicked;
+    width: 32px;
+    height: 32px;
+    border-radius: self.width / 2;
+    Icon {
+        source: icon;
+        size: icon-size;
+        colorize: !enabled ? ink-off : active ? Theme.controls-color-primary-default-enabled : ta.has-hover ? ink-hover : ink;
+        animate colorize { duration: App.motion ? Theme.duration-transition : 0ms; }
+    }
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// Нижний плеер. Фон — цвет обложки (hsl с яркостью 20%), прогресс закрашивает фон слева направо.
+export component PlayerBar inherits Rectangle {
+    property <float> progress: App.duration > 0 ? App.position / App.duration : 0;
+    property <float> drag-progress: -1;
+    property <float> shown: drag-progress >= 0 ? drag-progress : progress;
+    property <brush> ink: #ffffff80;
+    property <brush> ink-off: #ffffff14;
+    property <bool> on: App.has-track;
+    property <length> c: self.width / 2;
+    property <bool> vol-open: vol-btn.hovered || vol-pop.hovered;
+    property <bool> dragging: drag-progress >= 0;
+    // Полоса и бегунок видны при наведении на плеер или на зону перемотки.
+    property <bool> show-progress: on && (bar-ta.has-hover || seek-ta.has-hover || dragging);
+    property <float> hover-progress: max(0, min(1, seek-ta.mouse-x / root.width));
+
+    inner := Rectangle {
+        border-radius: Theme.radius-size-l;
+        border-width: 1px;
+        border-color: #ffffff0a;
+        background: on ? App.tint : Theme.background-color-primary-enabled-player;
+        clip: true;
+        animate background { duration: App.motion ? Theme.duration-transition : 0ms; }
+
+        if on: Rectangle {
+            x: 0;
+            width: parent.width * shown;
+            height: parent.height;
+            background: #ffffff0d;
+        }
+        // Полоса прогресса сверху: видна при наведении на плеер.
+        if show-progress: Rectangle {
+            y: 0;
+            height: 4px;
+            background: #ffffff1f;
+            Rectangle {
+                x: 0;
+                width: parent.width * shown;
+                background: Theme.controls-color-primary-default-enabled;
+            }
+        }
+
+        bar-ta := TouchArea {
+            mouse-cursor: on ? MouseCursor.pointer : MouseCursor.default;
+            clicked => {
+                if on {
+                    App.open-fullscreen(0);
+                }
+            }
+
+            if on: Cover {
+                x: 9px;
+                y: 8px;
+                width: 64px;
+                height: 64px;
+                radius: Theme.radius-size-s;
+                background: #ffffff14;
+                source: App.cover;
+                if cover-ta.has-hover: Rectangle {
+                    background: #00000033;
+                    Rectangle {
+                        width: 44px;
+                        height: 44px;
+                        border-radius: 22px;
+                        background: #1a1a1ae6;
+                        Icon { source: Icons.fullscreen; size: 24px; colorize: #ffffff; }
+                    }
+                }
+                cover-ta := TouchArea {
+                    mouse-cursor: MouseCursor.pointer;
+                    clicked => { App.open-fullscreen(0); }
+                }
+            }
+
+            if on: Rectangle {
+                x: 81px;
+                y: 19px;
+                width: c - 188px - self.x - 16px;
+                height: 20px;
+                HorizontalLayout {
+                    alignment: start;
+                    spacing: 4px;
+                    title := Text {
+                        text: App.title;
+                        overflow: elide;
+                        horizontal-stretch: 0;
+                        vertical-alignment: center;
+                        font-size: Theme.font-size-label-m;
+                        font-weight: 500;
+                        color: #ffffff;
+            if title-ta.has-hover: Rectangle {
+                x: 0;
+                y: (parent.height + parent.font-size) / 2 + 1px;
+                width: min(parent.width, parent.preferred-width);
+                height: 1px;
+                background: parent.color;
+            }
+                        title-ta := TouchArea {
+                            mouse-cursor: MouseCursor.pointer;
+                            clicked => { App.open-current-album(); }
+                        }
+                    }
+                    if App.track-version != "": Text {
+                        text: App.track-version;
+                        overflow: elide;
+                        horizontal-stretch: 0;
+                        vertical-alignment: center;
+                        font-size: Theme.font-size-label-m;
+                        font-weight: 500;
+                        color: #ffffff80;
+                    }
+                    if App.track-explicit: ExplicitMark { y: 1px; ink: #ffffff80; }
+                    more := Rectangle {
+                        width: 36px;
+                        height: 20px;
+                        Icon {
+                            source: Icons.more-small;
+                            size: 20px;
+                            colorize: more-ta.has-hover || App.menu-open ? #ffffffe6 : #ffffff80;
+                        }
+                        more-ta := TouchArea {
+                            mouse-cursor: MouseCursor.pointer;
+                            clicked => { App.open-track-menu(more.absolute-position.x + 18px, more.absolute-position.y); }
+                        }
+                    }
+                    Rectangle { horizontal-stretch: 1; }
+                }
+            }
+            // Каждый исполнитель — отдельная ссылка.
+            if on: ArtistLinks {
+                x: 81px;
+                y: 40px;
+                width: min(self.content-width, c - 188px - self.x - 16px);
+                height: 20px;
+                names: App.artist-list;
+                ink: #ffffff80;
+                ink-hover: #ffffffe6;
+                clicked(i) => { App.open-current-artist(i); }
+            }
+
+            BarButton { x: c - 188px + 6px; y: 24px; icon: Icons.dislike; enabled: on && App.is-wave; clicked => { App.dislike(); } }
+            BarButton { x: c - 128px; y: 24px; icon: Icons.shuffle; enabled: on && !App.is-wave; active: App.shuffle; clicked => { App.toggle-shuffle(); } }
+            BarButton { x: c - 80px + 6px; y: 24px; icon: Icons.prev-small; icon-size: 20px; enabled: on && App.can-prev; clicked => { App.prev(); } }
+            Rectangle {
+                x: c - 32px;
+                y: 20px;
+                width: 40px;
+                height: 40px;
+                Icon {
+                    source: App.playing ? Icons.pause-filled : Icons.play-filled;
+                    size: 40px;
+                    colorize: play-ta.has-hover ? Theme.controls-color-primary-default-hovered : Theme.controls-color-primary-default-enabled;
+                }
+                play-ta := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { App.play-pause(); } }
+            }
+            BarButton { x: c + 12px + 6px; y: 24px; icon: Icons.next-small; icon-size: 20px; enabled: on; clicked => { App.next(); } }
+            BarButton { x: c + 72px; y: 24px; icon: App.repeat == 2 ? Icons.repeat-one : Icons.repeat; enabled: on && !App.is-wave; active: App.repeat > 0; clicked => { App.cycle-repeat(); } }
+            BarButton { x: c + 120px + 6px; y: 24px; icon: App.liked ? Icons.liked : Icons.like; enabled: on; clicked => { App.like(); } }
+
+            BarButton { x: parent.width - 193px; y: 24px; icon: Icons.lyrics; enabled: on && App.has-lyrics; clicked => { App.open-fullscreen(2); } }
+            BarButton { x: parent.width - 145px; y: 24px; icon: Icons.queue; enabled: on; clicked => { App.open-fullscreen(1); } }
+            BarButton { x: parent.width - 97px; y: 24px; icon: Icons.settings; active: App.eq-open; clicked => { App.eq-open = !App.eq-open; } }
+            vol-btn := BarButton {
+                x: parent.width - 49px;
+                y: 24px;
+                icon: App.volume <= 0 ? Icons.volume-off : Icons.volume;
+                active: false;
+                ink: vol-open ? #ffffffe6 : #ffffff80;
+                clicked => { App.toggle-mute(); }
+            }
+        }
+    }
+
+    // Перемотка: зона 16 px по верхнему краю (6 px над плеером и 10 px внутри), тянуть можно по всей ширине.
+    seek-ta := TouchArea {
+        x: 0;
+        y: -6px;
+        width: root.width;
+        height: 16px;
+        enabled: on;
+        mouse-cursor: MouseCursor.pointer;
+        pointer-event(e) => {
+            if e.button == PointerEventButton.left && e.kind == PointerEventKind.down {
+                root.drag-progress = max(0, min(1, self.mouse-x / root.width));
+            }
+            if e.button == PointerEventButton.left && e.kind == PointerEventKind.up && root.drag-progress >= 0 {
+                App.seek(root.drag-progress * App.duration);
+                root.drag-progress = -1;
+            }
+        }
+        moved => {
+            if self.pressed {
+                root.drag-progress = max(0, min(1, self.mouse-x / root.width));
+            }
+        }
+    }
+
+    if show-progress: Rectangle {
+        x: root.width * shown - self.width / 2;
+        y: 2px - self.height / 2;
+        width: dragging || seek-ta.has-hover ? 14px : 12px;
+        height: self.width;
+        border-radius: self.width / 2;
+        background: Theme.controls-color-primary-default-enabled;
+        drop-shadow-blur: 4px;
+        drop-shadow-color: #00000052;
+    }
+    if on && (seek-ta.has-hover || dragging): Rectangle {
+        property <float> at: dragging ? shown : hover-progress;
+        x: max(0px, min(root.width - self.width, root.width * at - self.width / 2));
+        y: -32px;
+        width: time.preferred-width + 16px;
+        height: 24px;
+        border-radius: 12px;
+        background: #000000b3;
+        time := Text {
+            text: App.format-time(at * App.duration) + " / " + App.format-time(App.duration);
+            font-size: Theme.font-size-label-xs;
+            font-weight: 500;
+            color: #ffffffe6;
+        }
+    }
+
+    vol-pop := VolumePopup {
+        x: root.width - 49px + 16px - self.width / 2;
+        y: 24px - self.height;
+        visible: vol-open;
+    }
+}
+
+// Мини-плеер: окно ужато до плашки поверх всех окон. Тянется за любое место,
+// двойной клик возвращает обычное окно.
+export component MiniPlayer inherits Rectangle {
+    property <bool> on: App.has-track;
+    background: on ? App.tint : Theme.background-color-primary-enabled-player;
+    animate background { duration: App.motion ? Theme.duration-transition : 0ms; }
+
+    ta := TouchArea {
+        pointer-event(e) => {
+            if e.kind == PointerEventKind.down && e.button == PointerEventButton.left {
+                App.drag-window();
+            }
+        }
+        double-clicked => { App.toggle-mini(); }
+        // Колёсико над плашкой меняет громкость, как над ползунком в большом плеере.
+        scroll-event(e) => {
+            App.set-volume(max(0, min(1, App.volume + (e.delta-y > 0 ? 0.02 : -0.02))));
+            accept
+        }
+
+        if on: Rectangle {
+            x: 0;
+            y: parent.height - 2px;
+            width: App.duration > 0 ? parent.width * App.position / App.duration : 0;
+            height: 2px;
+            background: Theme.controls-color-primary-default-enabled;
+        }
+        if on: Cover {
+            x: 12px;
+            y: 12px;
+            width: 64px;
+            height: 64px;
+            radius: Theme.radius-size-s;
+            background: #ffffff14;
+            source: App.cover;
+        }
+        VerticalLayout {
+            x: on ? 88px : 16px;
+            width: parent.width - self.x - 144px;
+            alignment: center;
+            spacing: 2px;
+            Text {
+                text: on ? App.title : App.app-name;
+                overflow: elide;
+                font-size: Theme.font-size-label-m;
+                font-weight: 500;
+                color: #ffffff;
+            }
+            if on: Text {
+                text: App.artists;
+                overflow: elide;
+                font-size: Theme.font-size-label-m;
+                color: #ffffff80;
+            }
+        }
+
+        BarButton { x: parent.width - 136px; y: 28px; icon: Icons.prev-small; icon-size: 20px; enabled: on && App.can-prev; clicked => { App.prev(); } }
+        Rectangle {
+            x: parent.width - 96px;
+            y: 24px;
+            width: 40px;
+            height: 40px;
+            Icon {
+                source: App.playing ? Icons.pause-filled : Icons.play-filled;
+                size: 40px;
+                colorize: play-ta.has-hover ? Theme.controls-color-primary-default-hovered : Theme.controls-color-primary-default-enabled;
+            }
+            play-ta := TouchArea { enabled: on; mouse-cursor: MouseCursor.pointer; clicked => { App.play-pause(); } }
+        }
+        BarButton { x: parent.width - 48px; y: 28px; icon: Icons.next-small; icon-size: 20px; enabled: on; clicked => { App.next(); } }
+
+        // Громкость при наведении: значок выключает звук, полоску можно тянуть.
+        if ta.has-hover || vol-ta.pressed: BarButton {
+            x: parent.width - 172px;
+            y: 2px;
+            width: 24px;
+            height: 24px;
+            icon: App.volume <= 0 ? Icons.volume-off : Icons.volume;
+            icon-size: 16px;
+            clicked => { App.toggle-mute(); }
+        }
+        Rectangle {
+            x: parent.width - 144px;
+            y: 2px;
+            width: 80px;
+            height: 24px;
+            visible: ta.has-hover || vol-ta.pressed;
+            property <float> v: max(0, min(1, App.volume));
+            Rectangle { y: 10px; height: 4px; border-radius: 2px; background: #ffffff33; }
+            Rectangle { x: 0; y: 10px; width: parent.width * v; height: 4px; border-radius: 2px; background: #ffffffcc; }
+            Rectangle {
+                x: parent.width * v - 5px;
+                y: 7px;
+                width: 10px;
+                height: 10px;
+                border-radius: 5px;
+                background: vol-ta.has-hover || vol-ta.pressed ? Theme.controls-color-primary-default-enabled : #ffffff;
+            }
+            vol-ta := TouchArea {
+                mouse-cursor: MouseCursor.pointer;
+                pointer-event(e) => {
+                    if e.kind == PointerEventKind.down {
+                        App.set-volume(max(0, min(1, self.mouse-x / self.width)));
+                    }
+                }
+                moved => {
+                    if self.pressed {
+                        App.set-volume(max(0, min(1, self.mouse-x / self.width)));
+                    }
+                }
+            }
+        }
+        if ta.has-hover: BarButton { x: parent.width - 52px; y: 2px; width: 24px; height: 24px; icon: Icons.fullscreen; icon-size: 16px; clicked => { App.toggle-mini(); } }
+        if ta.has-hover: BarButton { x: parent.width - 28px; y: 2px; width: 24px; height: 24px; icon: Icons.close-xs; icon-size: 16px; clicked => { App.close(); } }
+    }
+}

@@ -1,0 +1,487 @@
+// «Моя волна»: колесо вайбов, кнопка запуска и фоновое пятно в цветах трека.
+
+import { Theme } from "theme.slint";
+import { Icons, Icon, Cover } from "widgets.slint";
+import { T, App, WheelEntry } from "state.slint";
+import { VolumePopup } from "popups.slint";
+
+component GlassButton inherits Rectangle {
+    in property <image> icon;
+    in property <length> icon-size: 24px;
+    in property <bool> enabled: true;
+    out property <bool> hovered: ta.has-hover;
+    callback clicked;
+    width: 48px;
+    height: 48px;
+    border-radius: self.height / 2;
+    background: ta.has-hover && enabled ? #ffffff24 : #ffffff14;
+    animate background { duration: App.motion ? Theme.duration-transition : 0ms; }
+    Icon { source: icon; size: icon-size; colorize: enabled ? (ta.has-hover ? #ffffffe6 : #ffffffb3) : #ffffff14; }
+    ta := TouchArea {
+        enabled: enabled;
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// Слот колеса. `p` — расстояние от центра в слайдах; сдвиг и прозрачность — формула оригинала.
+component WheelSlot inherits Rectangle {
+    in property <WheelEntry> entry;
+    in property <float> p;
+    in property <length> slide-h;
+    in property <length> wrap-x;
+    in property <length> area-h;
+    in property <length> area-w;
+    callback clicked;
+
+    property <float> t: abs(p) / 4;
+    property <float> f: t <= 1 ? 3.14159265 - t * 1.57079633 : t <= 2 ? 1.57079633 - (t - 1) * 1.57079633 : 0;
+    property <float> a: min(t / 2, 1);
+    property <float> s: max(0, min(1, (a - 0.42) / 0.58));
+    property <length> yc: area-h / 2 + p * slide-h;
+    // Маска оригинала: прозрачные 15% сверху и снизу.
+    property <float> edge: yc < area-h * 0.15 ? yc / (area-h * 0.15) : yc > area-h * 0.85 ? (area-h - yc) / (area-h * 0.15) : 1;
+
+    x: wrap-x + 120px * (1 + cos(f * 1rad));
+    y: yc - 40px;
+    width: 334px;
+    height: 80px;
+    // Прозрачность раздаётся детям: opacity на слоте — слой на каждый слот в каждом кадре.
+    property <float> alpha: max(0, edge) * (1 - 0.86 * s * s * (3 - 2 * s));
+    visible: alpha > 0.004;
+
+    Cover {
+        x: 0;
+        width: 80px;
+        height: 80px;
+        round: entry.round;
+        radius: 0;
+        background: transparent;
+        source: entry.cover;
+        alpha: root.alpha;
+        if ta.has-hover: Rectangle {
+            width: 40px;
+            height: 40px;
+            Icon { source: Icons.play-filled; size: 40px; colorize: #ffffff.with-alpha(root.alpha); }
+        }
+    }
+    VerticalLayout {
+        x: 96px;
+        // Как у оригинала: подпись тянется до края колеса, а не до фиксированных 202.
+        width: max(40px, root.area-w - root.x - 96px - 5px);
+        alignment: center;
+        spacing: 4px;
+        if entry.description != "": Text {
+            text: entry.description;
+            overflow: elide;
+            font-size: Theme.font-size-label-m;
+            font-weight: 500;
+            color: #ffffff.with-alpha(0.5 * root.alpha);
+        }
+        Text {
+            text: entry.name;
+            wrap: word-wrap;
+            overflow: elide;
+            max-height: 40px;
+            font-size: Theme.font-size-label-l;
+            font-weight: 500;
+            color: #ffffff.with-alpha(root.alpha);
+        }
+    }
+    ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+
+// Заголовок волны: самый крупный размер от 104 до 48, при котором слова не рвутся
+// и текст влезает по высоте (не больше 4 строк), — как useDynamicText оригинала.
+component FitTitle inherits Rectangle {
+    in property <string> text;
+    in property <string> longest;
+    in property <bool> link;
+    callback clicked;
+
+    property <length> w: root.width;
+    property <length> h: root.height;
+    p104 := Text { visible: false; width: w; text: root.text; wrap: word-wrap; font-family: "YS Music Headline"; font-weight: 700; font-size: 104px; }
+    p96 := Text { visible: false; width: w; text: root.text; wrap: word-wrap; font-family: "YS Music Headline"; font-weight: 700; font-size: 96px; }
+    p88 := Text { visible: false; width: w; text: root.text; wrap: word-wrap; font-family: "YS Music Headline"; font-weight: 700; font-size: 88px; }
+    p80 := Text { visible: false; width: w; text: root.text; wrap: word-wrap; font-family: "YS Music Headline"; font-weight: 700; font-size: 80px; }
+    p72 := Text { visible: false; width: w; text: root.text; wrap: word-wrap; font-family: "YS Music Headline"; font-weight: 700; font-size: 72px; }
+    p64 := Text { visible: false; width: w; text: root.text; wrap: word-wrap; font-family: "YS Music Headline"; font-weight: 700; font-size: 64px; }
+    p56 := Text { visible: false; width: w; text: root.text; wrap: word-wrap; font-family: "YS Music Headline"; font-weight: 700; font-size: 56px; }
+    w104 := Text { visible: false; text: root.longest; font-family: "YS Music Headline"; font-weight: 700; font-size: 104px; }
+    w96 := Text { visible: false; text: root.longest; font-family: "YS Music Headline"; font-weight: 700; font-size: 96px; }
+    w88 := Text { visible: false; text: root.longest; font-family: "YS Music Headline"; font-weight: 700; font-size: 88px; }
+    w80 := Text { visible: false; text: root.longest; font-family: "YS Music Headline"; font-weight: 700; font-size: 80px; }
+    w72 := Text { visible: false; text: root.longest; font-family: "YS Music Headline"; font-weight: 700; font-size: 72px; }
+    w64 := Text { visible: false; text: root.longest; font-family: "YS Music Headline"; font-weight: 700; font-size: 64px; }
+    w56 := Text { visible: false; text: root.longest; font-family: "YS Music Headline"; font-weight: 700; font-size: 56px; }
+
+    property <length> size:
+          w104.preferred-width <= w && p104.preferred-height <= min(h, 4 * 104px * 1.25) ? 104px
+        : w96.preferred-width <= w && p96.preferred-height <= min(h, 4 * 96px * 1.25) ? 96px
+        : w88.preferred-width <= w && p88.preferred-height <= min(h, 4 * 88px * 1.25) ? 88px
+        : w80.preferred-width <= w && p80.preferred-height <= min(h, 4 * 80px * 1.25) ? 80px
+        : w72.preferred-width <= w && p72.preferred-height <= min(h, 4 * 72px * 1.25) ? 72px
+        : w64.preferred-width <= w && p64.preferred-height <= min(h, 4 * 64px * 1.25) ? 64px
+        : w56.preferred-width <= w && p56.preferred-height <= min(h, 4 * 56px * 1.25) ? 56px
+        : 48px;
+
+    shown := Text {
+        width: w;
+        height: h;
+        text: root.text;
+        wrap: word-wrap;
+        overflow: elide;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        font-family: "YS Music Headline";
+        font-size: root.size;
+        font-weight: 700;
+        color: #ffffff;
+    }
+    line := Text { visible: false; text: root.text; font-family: "YS Music Headline"; font-weight: 700; font-size: root.size; }
+    // Кликабельна только сама надпись, а не пустое место вокруг.
+    if root.link: TouchArea {
+        width: min(w, line.preferred-width);
+        height: min(h, shown.preferred-height);
+        x: (w - self.width) / 2;
+        y: (h - self.height) / 2;
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// «Челка» над пятном: источник волны и отдельная круглая кнопка сброса.
+component ContextPill inherits Rectangle {
+    in property <string> text;
+    callback reset;
+    height: 48px;
+    property <length> btn: 48px;
+    property <length> pill-w: min(label.preferred-width + 48px, root.width - btn - 4px);
+    pill := Rectangle {
+        x: (root.width - pill-w - 4px - btn) / 2;
+        width: pill-w;
+        border-radius: 24px;
+        background: pill-ta.pressed ? #00000099 : pill-ta.has-hover ? #00000066 : #0000004d;
+        animate background { duration: App.motion ? Theme.duration-transition : 0ms; }
+        label := Text {
+            x: 24px;
+            width: parent.width - 48px;
+            text: root.text;
+            overflow: elide;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            font-family: "YS Music Headline";
+            font-size: Theme.font-size-headline-xs;
+            font-weight: 700;
+            color: Theme.logo-color-primary-player;
+        }
+        pill-ta := TouchArea {
+            mouse-cursor: MouseCursor.pointer;
+            clicked => { root.reset(); }
+        }
+    }
+    Rectangle {
+        x: pill.x + pill.width + 4px;
+        width: btn;
+        border-radius: btn / 2;
+        background: x-ta.pressed ? #00000099 : x-ta.has-hover ? #00000066 : #0000004d;
+        animate background { duration: App.motion ? Theme.duration-transition : 0ms; }
+        Icon { source: Icons.close-small; size: 24px; colorize: x-ta.has-hover ? #ffffffe6 : #ffffff80; }
+        x-ta := TouchArea {
+            mouse-cursor: MouseCursor.pointer;
+            clicked => { root.reset(); }
+        }
+    }
+}
+
+export component WavePage inherits Rectangle {
+    // Раскладка оригинала: колесо — левые 40%, справа мета с отступами 24 и 48.
+    property <length> wheel-w: root.width * 0.4;
+    property <length> text-x: wheel-w + 24px;
+    property <length> text-w: root.width - text-x - 48px;
+    property <length> cx: text-x + text-w / 2;
+    property <length> blob: root.width * 0.6 * 1.107;
+    property <bool> paused: App.has-track && !App.playing;
+    property <length> title-y: App.wave-context ? 84px : 98px;
+    // Высота окна и сдвиги по замерам оригинала при 700–1100: плеер прижат к низу (H − 248),
+    // заголовок и пятно — к середине; ниже 800 отступы меньше.
+    property <length> wh: root.height + 20px;
+    property <length> dp: max(wh - 248px, min(wh - 200px, 600px)) - 600px;
+    property <length> dt: max(wh / 2 - 225px, min(wh / 2 - 209px, 191px)) - 191px;
+    property <length> db: max(wh / 2 - 458px, min(wh / 2 - 442px, -42px)) + 42px;
+    property <float> progress: App.duration > 0 ? App.position / App.duration : 0;
+    property <float> drag-progress: -1;
+    property <float> shown: drag-progress >= 0 ? drag-progress : progress;
+
+    // Пятно: картинка оригинала, перекрашенная под трек.
+    Image {
+        x: cx - blob / 2;
+        y: 284px + db - blob / 2;
+        width: blob;
+        height: blob;
+        source: App.blob;
+        image-fit: contain;
+        opacity: 0.8;
+    }
+
+    // Колесо вайбов: бесконечная лента, крутится колёсиком мыши.
+    wheel := Rectangle {
+        x: 0;
+        y: 0;
+        width: wheel-w;
+        height: root.height;
+        clip: true;
+
+        property <int> n: App.wheel.length;
+        property <int> per-view: max(4, min(9, floor(self.height / 106px)));
+        property <length> slide-h: self.height / per-view;
+        property <length> wrap-x: self.width - min(self.width * 0.8, 600px);
+        in-out property <float> offset: 0;
+        animate offset { duration: App.motion ? 220ms : 0ms; easing: ease-out; }
+        property <int> base: floor(offset);
+        property <float> frac: offset - base;
+
+        TouchArea {
+            scroll-event(e) => {
+                // Колёсико: 100 px оригинала на щелчок × чувствительность 0,3.
+                // Щелчок колёсика (60 px) — один слайд, как у Swiper оригинала.
+                wheel.offset = wheel.offset - e.delta-y / 60px;
+                accept
+            }
+        }
+
+        if n > 0: Rectangle {
+            for k in 13: WheelSlot {
+                property <int> rel: k - 6;
+                property <int> idx: mod(mod(wheel.base + rel, wheel.n) + wheel.n, wheel.n);
+                entry: App.wheel[idx];
+                p: rel - wheel.frac;
+                slide-h: wheel.slide-h;
+                wrap-x: wheel.wrap-x;
+                area-h: wheel.height;
+                area-w: wheel.width;
+                clicked => {
+                    if abs(self.p) >= 2.5 {
+                        wheel.offset = wheel.offset + self.p;
+                    } else {
+                        App.play-wheel(self.idx);
+                    }
+                }
+            }
+        }
+    }
+
+    // Источник: «Моя волна» — просто подпись; волна по треку, исполнителю или вайбу — «челка» со сбросом.
+    if App.has-track && !App.wave-context: Text {
+        x: text-x;
+        y: 38px;
+        width: text-w;
+        text: App.source-title;
+        horizontal-alignment: center;
+        font-family: "YS Music Headline";
+        font-size: Theme.font-size-headline-s;
+        font-weight: 700;
+        color: #ffff00;
+    }
+    if App.has-track && App.wave-context: ContextPill {
+        x: text-x;
+        y: 24px;
+        width: text-w;
+        text: App.source-title;
+        reset => { App.reset-wave(); }
+    }
+
+    // «Моя волна» без трека и на паузе — замер оригинала: 103 px в одну строку.
+    if !App.has-track || paused: Text {
+        x: text-x;
+        y: 171px + dt;
+        width: text-w;
+        text: T.t("Моя волна");
+        horizontal-alignment: center;
+        font-family: "YS Music Headline";
+        font-size: 103px / App.ui-scale;
+        font-weight: 700;
+        color: #ffffff;
+    }
+
+    if !App.has-track: Rectangle {
+        x: cx - 32px;
+        y: 580px + dp;
+        width: 64px;
+        height: 64px;
+        border-radius: 32px;
+        background: idle-ta.has-hover ? Theme.controls-color-primary-default-hovered : #ffff00;
+        animate background { duration: App.motion ? 150ms : 0ms; }
+        Icon { source: Icons.play-big; size: 32px; colorize: #000; }
+        idle-ta := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { App.play-pause(); } }
+    }
+    if !App.has-track: Icon { x: cx - 76px - 12px; y: 600px + dp; source: Icons.prev; size: 24px; colorize: #ffffff14; }
+    if !App.has-track: Icon { x: cx - 76px + 140px; y: 600px + dp; source: Icons.next; size: 24px; colorize: #ffffff14; }
+
+    // Исполнитель крупно: клик открывает его страницу.
+    if App.has-track && !paused: FitTitle {
+        x: text-x;
+        y: title-y;
+        width: text-w;
+        height: 382px + dp - title-y;
+        text: App.artists;
+        longest: App.artists-longest;
+        link: App.artist-list.length > 0;
+        clicked => { App.open-current-artist(0); }
+    }
+
+    // Обложка открывает альбом трека, а не плеер на весь экран.
+    if App.has-track: Cover {
+        x: cx - 48px;
+        y: 384px + dp;
+        width: 96px;
+        height: 96px;
+        radius: Theme.radius-size-m;
+        source: App.cover;
+        TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { App.open-current-album(); } }
+    }
+
+    if App.has-track: HorizontalLayout {
+        x: cx - (4 * 52px + min(346px, text-w - 4 * 52px)) / 2;
+        y: 496px + dp;
+        height: 64px;
+        spacing: 4px;
+        // Громкость: стеклянный ползунок над кнопкой, пока на ней курсор.
+        Rectangle {
+            y: 8px;
+            width: 48px;
+            height: 48px;
+            property <bool> open: vol.hovered || vol-pop.hovered || bridge.has-hover;
+            vol := GlassButton {
+                icon: App.volume <= 0 ? Icons.volume-off : Icons.volume;
+                clicked => { App.toggle-mute(); }
+            }
+            bridge := TouchArea {
+                y: -12px;
+                height: 12px;
+                visible: parent.open;
+            }
+            vol-pop := VolumePopup {
+                x: (parent.width - self.width) / 2;
+                y: -12px - self.height;
+                visible: parent.open;
+                glass: true;
+            }
+        }
+        GlassButton { y: 8px; icon: Icons.dislike; enabled: App.is-wave; clicked => { App.dislike(); } }
+        // Плашка трека — она же полоса перемотки: закрашена слева по прогрессу.
+        pill := Rectangle {
+            width: min(346px, text-w - 4 * 52px);
+            height: 64px;
+            border-radius: 32px;
+            background: #ffffff14;
+            Rectangle {
+                border-radius: 32px;
+                clip: true;
+                Rectangle {
+                    x: 0;
+                    width: parent.width * root.shown;
+                    background: #ffffff14;
+                }
+            }
+            Text {
+                width: parent.width - 52px;
+                text: App.title;
+                horizontal-alignment: center;
+                overflow: elide;
+                font-family: "YS Music Headline";
+                font-size: Theme.font-size-headline-xs;
+                font-weight: 700;
+                color: #ffffffb3;
+            }
+            pill-ta := TouchArea {
+                mouse-cursor: MouseCursor.pointer;
+                pointer-event(e) => {
+                    if e.button == PointerEventButton.left && e.kind == PointerEventKind.down {
+                        root.drag-progress = max(0, min(1, self.mouse-x / self.width));
+                    }
+                    if e.button == PointerEventButton.left && e.kind == PointerEventKind.up && root.drag-progress >= 0 {
+                        App.seek(root.drag-progress * App.duration);
+                        root.drag-progress = -1;
+                    }
+                }
+                moved => {
+                    if self.pressed {
+                        root.drag-progress = max(0, min(1, self.mouse-x / self.width));
+                    }
+                }
+            }
+            // Подсказка времени: у бегунка при перемотке, у курсора при наведении.
+            if pill-ta.has-hover || root.drag-progress >= 0: Rectangle {
+                property <float> at: root.drag-progress >= 0 ? root.drag-progress : max(0, min(1, pill-ta.mouse-x / pill-ta.width));
+                x: parent.width * at - self.width / 2;
+                y: -32px;
+                width: tip.preferred-width + 16px;
+                height: 24px;
+                border-radius: 12px;
+                background: #000000b3;
+                tip := Text {
+                    text: App.format-time(at * App.duration) + " / " + App.format-time(App.duration);
+                    font-size: Theme.font-size-label-xs;
+                    font-weight: 500;
+                    color: #ffffffe6;
+                }
+            }
+        }
+        GlassButton { y: 8px; icon: App.liked ? Icons.liked : Icons.like; clicked => { App.like(); } }
+        more := GlassButton {
+            y: 8px;
+            icon: Icons.more;
+            clicked => { App.open-track-menu(self.absolute-position.x + self.width / 2, self.absolute-position.y); }
+        }
+    }
+
+    if App.has-track: HorizontalLayout {
+        x: cx - 88px;
+        y: 580px + dp;
+        width: 176px;
+        height: 64px;
+        spacing: 32px;
+        Rectangle {
+            width: 24px;
+            Icon { source: Icons.prev; size: 24px; colorize: prev-ta.has-hover ? #ffffffe6 : #ffffff80; }
+            prev-ta := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { App.prev(); } }
+        }
+        Rectangle {
+            width: 64px;
+            height: 64px;
+            border-radius: 32px;
+            background: play-ta.has-hover ? Theme.controls-color-primary-default-hovered : #ffff00;
+            animate background { duration: App.motion ? 150ms : 0ms; }
+            Icon { source: App.playing ? Icons.pause-big : Icons.play-big; size: 32px; colorize: #000; }
+            play-ta := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { App.play-pause(); } }
+        }
+        Rectangle {
+            width: 24px;
+            Icon { source: Icons.next; size: 24px; colorize: next-ta.has-hover ? #ffffffe6 : #ffffff80; }
+            next-ta := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { App.next(); } }
+        }
+    }
+
+
+    // Версия в правом нижнем углу, как у официального приложения.
+    Rectangle {
+        x: parent.width - self.width;
+        y: parent.height - 38px;
+        width: ver.preferred-width + 16px;
+        height: 26px;
+        border-radius: 16px;
+        background: #ffffff14;
+        ver := Text {
+            text: App.version;
+            font-size: Theme.font-size-label-s;
+            font-weight: 500;
+            color: #ffffff80;
+        }
+    }
+}

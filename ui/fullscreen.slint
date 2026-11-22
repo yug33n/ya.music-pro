@@ -1,0 +1,565 @@
+// Полноэкранный плеер: обложка, очередь и синхронный текст песни.
+
+import { Theme } from "theme.slint";
+import { Icons, Icon, Cover, ArtistLinks, ExplicitMark } from "widgets.slint";
+import { T, App, TrackItem } from "state.slint";
+
+component RoundButton inherits Rectangle {
+    in property <image> icon;
+    in property <length> size: 64px;
+    in property <length> icon-size: 32px;
+    in property <brush> ink: #ffffff;
+    in property <bool> enabled: true;
+    callback clicked;
+    width: size;
+    height: size;
+    border-radius: size / 2;
+    background: ta.has-hover && enabled ? #33333399 : #1a1a1a99;
+    animate background { duration: App.motion ? 150ms : 0ms; }
+    Icon { source: icon; size: icon-size; colorize: enabled ? (ta.has-hover ? #ffffff : ink) : #ffffff33; }
+    ta := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+component QueueRow inherits Rectangle {
+    in property <TrackItem> item;
+    in property <bool> current;
+    callback clicked;
+    height: 56px;
+    border-radius: Theme.radius-size-m;
+    background: ta.has-hover ? #ffffff0d : transparent;
+    animate background { duration: App.motion ? 150ms : 0ms; }
+    ta := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { root.clicked(); } }
+    Cover {
+        x: 8px;
+        y: 8px;
+        width: 40px;
+        height: 40px;
+        radius: Theme.radius-size-s;
+        source: item.cover;
+        if current || ta.has-hover: Rectangle {
+            Rectangle {
+                width: 24px;
+                height: 24px;
+                border-radius: 12px;
+                background: #ffffff;
+                Icon { source: current && App.playing ? Icons.pause-filled-xs : Icons.play-filled-xs; size: 24px; colorize: #000000; }
+            }
+        }
+    }
+    HorizontalLayout {
+        x: 60px;
+        y: 9px;
+        height: 18px;
+        width: parent.width - 60px - 128px;
+        spacing: 4px;
+        Text {
+            text: item.title;
+            overflow: elide;
+            horizontal-stretch: 0;
+            font-size: Theme.font-size-label-m;
+            font-weight: 500;
+            color: #ffffff;
+        }
+        if item.version != "": Text {
+            text: item.version;
+            horizontal-stretch: 0;
+            font-size: Theme.font-size-label-m;
+            font-weight: 500;
+            color: #ffffff80;
+        }
+        if item.explicit: ExplicitMark { y: -1px; ink: #ffffff80; }
+        Rectangle { horizontal-stretch: 1; }
+    }
+    Text {
+        x: 60px;
+        y: 30px;
+        width: parent.width - 60px - 128px;
+        text: item.artists;
+        overflow: elide;
+        font-size: Theme.font-size-label-m;
+        font-weight: 500;
+        color: #ffffff80;
+    }
+    if current: Icon {
+        x: parent.width - 92px;
+        y: 18px;
+        source: App.liked ? Icons.liked-small : Icons.like-small;
+        size: 20px;
+        colorize: #ffffff80;
+        TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { App.like(); } }
+    }
+    Text {
+        x: parent.width - 8px - self.width;
+        y: 18px;
+        text: item.duration;
+        font-size: Theme.font-size-label-m;
+        font-weight: 500;
+        color: #ffffff80;
+    }
+}
+
+// Обложка 400 с подписью и прогрессом; при наведении — кнопки управления поверх.
+component Poster inherits Rectangle {
+    width: 400px;
+    height: 508px;
+    property <float> progress: App.duration > 0 ? App.position / App.duration : 0;
+    property <float> drag: -1;
+    property <float> shown: drag >= 0 ? drag : progress;
+
+    poster := Rectangle {
+        y: 0;
+        width: 400px;
+        height: 400px;
+        border-radius: Theme.radius-size-m;
+        drop-shadow-blur: 24px;
+        drop-shadow-offset-y: 4px;
+        drop-shadow-color: #00000052;
+        Cover {
+            width: 400px;
+            height: 400px;
+            radius: Theme.radius-size-m;
+            background: #ffffff14;
+            source: App.cover-big;
+        }
+        hover := TouchArea {
+        if hover.has-hover: Rectangle {
+            border-radius: Theme.radius-size-m;
+            background: #00000080;
+            RoundButton {
+                x: 320px;
+                y: 16px;
+                icon: Icons.queue-m;
+                ink: App.fs-mode == 1 ? #ffffff : #ffffff80;
+                clicked => { App.fs-mode = App.fs-mode == 1 ? 0 : 1; }
+            }
+            RoundButton { x: 116px; y: 178px; size: 44px; icon: Icons.prev-small; icon-size: 20px; enabled: App.can-prev; clicked => { App.prev(); } }
+            Rectangle {
+                x: 166px;
+                y: 166px;
+                width: 67px;
+                height: 67px;
+                border-radius: 34px;
+                background: play-ta.has-hover ? Theme.controls-color-primary-default-hovered : #ffff00;
+                animate background { duration: App.motion ? 150ms : 0ms; }
+                Icon { source: App.playing ? Icons.pause-m : Icons.play-m; size: 34px; colorize: #1a1a1ae6; }
+                play-ta := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { App.play-pause(); } }
+            }
+            RoundButton { x: 240px; y: 178px; size: 44px; icon: Icons.next-small; icon-size: 20px; clicked => { App.next(); } }
+            RoundButton {
+                x: 300px;
+                y: 180px;
+                size: 40px;
+                icon: App.repeat == 2 ? Icons.repeat-one-small : Icons.repeat-small;
+                icon-size: 20px;
+                enabled: !App.is-wave;
+                ink: App.repeat > 0 ? Theme.controls-color-primary-default-enabled : #ffffff80;
+                clicked => { App.cycle-repeat(); }
+            }
+            RoundButton {
+                x: 16px;
+                y: 320px;
+                icon: Icons.more-m;
+                clicked => { App.open-track-menu(self.absolute-position.x + 32px, self.absolute-position.y); }
+            }
+            RoundButton {
+                x: 168px;
+                y: 320px;
+                icon: Icons.lyrics-m;
+                enabled: App.has-lyrics;
+                ink: App.fs-mode == 2 ? #ffffff : #ffffff80;
+                clicked => { App.fs-mode = App.fs-mode == 2 ? 0 : 2; }
+            }
+            RoundButton { x: 320px; y: 320px; icon: App.liked ? Icons.liked-m : Icons.like-m; clicked => { App.like(); } }
+        }
+        }
+    }
+
+    HorizontalLayout {
+        y: 424px;
+        height: 24px;
+        alignment: center;
+        spacing: 4px;
+        Text {
+            text: App.title;
+            overflow: elide;
+            vertical-alignment: center;
+            font-size: Theme.font-size-label-l;
+            font-weight: 500;
+            color: #ffffff;
+            if title-ta.has-hover: Rectangle {
+                x: 0;
+                y: (parent.height + parent.font-size) / 2 + 1px;
+                width: min(parent.width, parent.preferred-width);
+                height: 1px;
+                background: parent.color;
+            }
+            title-ta := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { App.open-current-album(); } }
+        }
+        if App.track-explicit: ExplicitMark { y: 0; size: 24px; ink: #ffffff80; }
+    }
+    ArtistLinks {
+        y: 448px;
+        width: min(self.content-width, parent.width);
+        x: (parent.width - self.width) / 2;
+        height: 24px;
+        names: App.artist-list;
+        font-size: Theme.font-size-label-l;
+        ink: #ffffff80;
+        ink-hover: #ffffffe6;
+        clicked(i) => { App.open-current-artist(i); }
+    }
+
+    // Прогресс под обложкой, время слева и справа при наведении.
+    Rectangle {
+        y: 493px;
+        height: 4px;
+        border-radius: 2px;
+        background: #ffffff29;
+        Rectangle {
+            x: 0;
+            width: parent.width * shown;
+            border-radius: 2px;
+            background: seek.has-hover || seek.pressed ? Theme.controls-color-primary-default-enabled : #ffffffcc;
+            animate background { duration: App.motion ? 150ms : 0ms; }
+        }
+    }
+    if seek.has-hover || seek.pressed: Text {
+        x: -41px;
+        y: 487px;
+        text: App.format-time(shown * App.duration);
+        font-size: Theme.font-size-label-s;
+        font-weight: 500;
+        color: #ffffff80;
+    }
+    if seek.has-hover || seek.pressed: Text {
+        x: 408px;
+        y: 487px;
+        text: App.format-time(App.duration);
+        font-size: Theme.font-size-label-s;
+        font-weight: 500;
+        color: #ffffff80;
+    }
+    seek := TouchArea {
+        y: 487px;
+        height: 16px;
+        mouse-cursor: MouseCursor.pointer;
+        pointer-event(e) => {
+            if e.kind == PointerEventKind.down {
+                root.drag = max(0, min(1, self.mouse-x / self.width));
+            }
+            if e.kind == PointerEventKind.up && root.drag >= 0 {
+                App.seek(root.drag * App.duration);
+                root.drag = -1;
+            }
+        }
+        moved => {
+            if self.pressed {
+                root.drag = max(0, min(1, self.mouse-x / self.width));
+            }
+        }
+    }
+}
+
+// Точки ожидания (SyncLyricsLoader): четыре кружка «дышат» по очереди, 1,1 с туда и обратно.
+component LyricsLoader inherits Rectangle {
+    in property <length> window-width;
+    in property <bool> paused;
+    in property <float> fade: 1;
+    property <length> dot: max(18px, window-width * 0.014);
+    property <length> gap: max(8px, window-width * 0.0062);
+    height: max(40px, window-width * 0.03125);
+    for i in 4: Rectangle {
+        // Фаза 0…1…0: animation-direction alternate, задержка (i+1)·0,275 с.
+        // Без анимаций точки стоят в средней фазе и не перерисовываются каждый кадр.
+        property <float> t: paused || !App.motion ? 0 : (animation-tick() / 1ms / 1100 - (i + 1) * 0.25);
+        property <float> k: !App.motion ? 0.5 : t < 0 ? 0 : (mod(t, 2) < 1 ? mod(t, 1) : 1 - mod(t, 1));
+        x: (parent.width - 4 * root.dot - 3 * root.gap) / 2 + i * (root.dot + root.gap);
+        y: (parent.height - root.dot) / 2 + root.dot * (0.5 - k);
+        width: root.dot;
+        height: root.dot;
+        border-radius: root.dot / 2;
+        background: #e6e6e6;
+        opacity: (0.1 + 0.4 * k) * root.fade;
+        transform-scale: 1 + 0.3 * (1 - abs(2 * k - 1));
+    }
+}
+
+component LyricRow inherits Rectangle {
+    in property <string> text;
+    in property <length> font-size;
+    in property <float> shade;
+    in property <bool> active;
+    in property <bool> clickable;
+    in property <float> fade: 1;
+    callback clicked;
+    height: text == "" ? 0 : label.preferred-height;
+    // Прозрачность через цвет текста: opacity на элементе с детьми рисуется отдельным
+    // слоем во всю область отрисовки, и в программном Skia каждая строка стоит кадр.
+    property <float> alpha: shade;
+    animate alpha { duration: App.motion ? 450ms : 0ms; }
+    // Масштаб идёт ступенями по 2,5%: у каждого промежуточного размера свои глифы,
+    // и плавная анимация растеризовала бы строку заново в каждом кадре и раздувала кэш.
+    property <float> grow: active ? 1 : 0;
+    animate grow { duration: App.motion ? 450ms : 0ms; }
+    label := Text {
+        transform-scale: 1 + round(root.grow * 8) * 0.025;
+        x: parent.width * 0.1;
+        width: parent.width * 0.8;
+        text: root.text;
+        wrap: word-wrap;
+        horizontal-alignment: center;
+        font-family: "YS Music Headline";
+        font-size: root.font-size;
+        font-weight: 700;
+        color: #e6e6e6.with-alpha(root.alpha * root.fade);
+    }
+    TouchArea {
+        enabled: root.clickable;
+        mouse-cursor: root.clickable ? MouseCursor.pointer : MouseCursor.default;
+        clicked => { root.clicked(); }
+    }
+}
+
+// Синхронный текст: лента слайдов «отсчёт — строки — авторы», текущая строка встаёт
+// на 40% высоты окна, прокрутка 300 мс. Колесо — свободная прокрутка на 3 с.
+component SyncLyrics inherits Rectangle {
+    in property <length> window-height;
+    in property <length> window-width;
+    property <length> font: max(32px, window-width * 0.025);
+    property <length> inset: window-height * 0.4;
+    property <bool> scrolled: App.lyrics-scrolled;
+    property <int> state: App.lyric-state;
+    property <int> cur: scrolled ? -1 : App.lyric-current;
+    // Слайд, к которому прокручено: 0 — отсчёт, i+1 — строка i.
+    property <int> slide: state <= 1 ? 0 : state == 3 ? App.lyrics.length : App.lyric-target + 1;
+    property <length> row-y;
+    property <length> slide-y: slide <= 0 ? 0 : row-y;
+    property <length> free-y;
+    property <length> content-h: list.preferred-height;
+    property <int> epoch: App.lyrics-epoch;
+    changed epoch => { free-y = 0; row-y = 0; }
+    property <length> offset: scrolled ? free-y : slide-y;
+    animate offset { duration: App.motion ? 300ms : 0ms; easing: ease; }
+    clip: true;
+    // Появление — через прозрачность детей: opacity здесь стоила бы слоя на всю панель.
+    property <float> appear: App.motion ? 0 : 1;
+    animate appear { duration: App.motion ? 800ms : 0ms; easing: ease-in-out; }
+    init => { appear = 1; }
+
+    TouchArea {
+        scroll-event(e) => {
+            if !root.scrolled {
+                root.free-y = root.slide-y;
+            }
+            root.free-y = max(40px - root.inset, min(root.content-h - 80px, root.free-y - e.delta-y));
+            App.lyrics-wheel();
+            accept
+        }
+    }
+
+    if App.lyrics-loading: LyricsLoader {
+        y: root.inset;
+        width: root.width;
+        window-width: root.window-width;
+        paused: !App.playing;
+        fade: root.appear;
+    }
+    if !App.lyrics-loading && App.lyrics.length == 0: Text {
+        y: root.inset;
+        width: root.width;
+        horizontal-alignment: center;
+        text: T.t("Текста этой песни пока нет");
+        font-family: "YS Music Headline";
+        font-size: root.font;
+        font-weight: 700;
+        color: #e6e6e6.with-alpha(0.5 * root.appear);
+    }
+
+    list := VerticalLayout {
+        visible: !App.lyrics-loading && App.lyrics.length > 0;
+        x: 0;
+        y: root.inset - root.offset;
+        width: root.width;
+        // Высота — по содержимому: без неё лента равна окну и прокрутка вниз упирается в него.
+        height: self.preferred-height;
+        spacing: 32px;
+        // Отсчёт: точки до первой строки, за 3 с до неё — цифры.
+        VerticalLayout {
+            padding-bottom: root.window-width * 0.0523;
+            if !root.scrolled && root.state == 0: LyricsLoader {
+                window-width: root.window-width;
+                paused: !App.playing;
+                fade: root.appear;
+            }
+            if !root.scrolled && root.state == 1: Text {
+                text: App.lyric-counter;
+                horizontal-alignment: center;
+                font-family: "YS Music Headline";
+                font-size: root.font;
+                font-weight: 700;
+                color: #e6e6e6.with-alpha(0.5 * root.appear);
+            }
+        }
+        for l[i] in App.lyrics: LyricRow {
+            property <bool> target: i + 1 == root.slide;
+            text: l.text;
+            font-size: root.font;
+            fade: root.appear;
+            active: i == root.cur;
+            clickable: root.scrolled;
+            shade: root.scrolled ? 1
+                : i == root.cur ? 1
+                : root.cur >= 0 && i == root.cur + 1 ? 0.3
+                : root.cur >= 0 && i > root.cur ? 0.1
+                : (root.state == 0 || root.state == 1) && i == 0 ? 0.3
+                : root.state == 0 || root.state == 1 ? 0.1
+                : root.state == 3 && i == App.lyrics.length - 1 ? 0.1
+                : App.lyrics-upper ? 0.1 : 0;
+            init => { if self.target { root.row-y = self.y; } }
+            changed target => { if self.target { root.row-y = self.y; } }
+            changed y => { if self.target { root.row-y = self.y; } }
+            clicked => { App.seek-lyric(i); }
+        }
+        VerticalLayout {
+            padding-top: root.window-width * 0.0625;
+            if App.lyrics-writers != "": Text {
+                text: T.t("Авторы: ") + App.lyrics-writers;
+                wrap: word-wrap;
+                horizontal-alignment: center;
+                font-size: max(16px, root.window-width * 0.0125);
+                font-weight: 500;
+                color: #ffffff.with-alpha(0.5 * root.appear);
+            }
+            if App.lyrics-source != "": Text {
+                text: T.t("Источник: ") + App.lyrics-source;
+                wrap: word-wrap;
+                horizontal-alignment: center;
+                font-size: max(16px, root.window-width * 0.0125);
+                font-weight: 500;
+                color: #ffffff.with-alpha(0.5 * root.appear);
+            }
+        }
+    }
+
+    // Затухание сверху и снизу цветом плеера, 5rem.
+    Rectangle {
+        y: 0;
+        height: 80px;
+        cache-rendering-hint: App.motion;
+        background: @linear-gradient(180deg, App.tint 0%, App.tint.transparentize(1) 100%);
+    }
+    Rectangle {
+        y: parent.height - 80px;
+        height: 80px;
+        cache-rendering-hint: App.motion;
+        background: @linear-gradient(0deg, App.tint 0%, App.tint.transparentize(1) 100%);
+    }
+
+}
+
+export component FullscreenPlayer inherits Rectangle {
+    background: App.tint;
+    property <bool> side: App.fs-mode != 0;
+    property <length> py: (self.height - 510px) / 2;
+
+    // Движение мыши показывает строки текста выше текущей.
+    TouchArea {
+        changed mouse-x => { if App.fs-mode == 2 { App.lyrics-mouse(); } }
+        changed mouse-y => { if App.fs-mode == 2 { App.lyrics-mouse(); } }
+    }
+
+    Poster {
+        x: side ? root.width / 4 - 200px : (root.width - 400px) / 2;
+        y: py;
+        animate x { duration: App.motion ? 800ms : 0ms; easing: ease-in-out; }
+    }
+
+    // Очередь: «Сейчас играет …», текущий трек, «Далее в очереди».
+    if App.fs-mode == 1: Flickable {
+        x: root.width / 2 - 35px;
+        y: py;
+        width: root.width - self.x - 52px;
+        height: root.height - py - 40px;
+        content-height: 152px + App.queue.length * 56px + 40px;
+        Text {
+            x: 0;
+            y: 0;
+            text: T.t("Сейчас играет ") + App.queue-header;
+            font-size: Theme.font-size-label-m;
+            font-weight: 500;
+            color: #ffffff;
+        }
+        Text {
+            x: 0;
+            y: 20px;
+            width: parent.width;
+            text: App.queue-title;
+            overflow: elide;
+            font-family: "YS Music Headline";
+            font-size: Theme.font-size-headline-m;
+            font-weight: 700;
+            color: #ffffff;
+        }
+        QueueRow {
+            x: 0;
+            y: 70px;
+            width: parent.width;
+            current: true;
+            item: {
+                title: App.title,
+                version: App.track-version,
+                artists: App.artists,
+                duration: App.format-time(App.duration),
+                cover: App.cover,
+                liked: App.liked,
+                explicit: App.track-explicit,
+                available: true,
+            };
+            clicked => { App.play-pause(); }
+        }
+        if App.queue.length > 0: Text {
+            x: 0;
+            y: 152px;
+            text: T.t("Далее в очереди");
+            font-size: Theme.font-size-label-m;
+            font-weight: 500;
+            color: #ffffff;
+        }
+        for q[i] in App.queue: QueueRow {
+            x: 0;
+            y: 180px + i * 56px;
+            width: parent.width;
+            item: q;
+            clicked => { App.jump-queue(i); }
+        }
+    }
+
+    // Текст песни справа от обложки, как SyncLyrics оригинала.
+    if App.fs-mode == 2: SyncLyrics {
+        x: root.width / 2 - 44px;
+        y: 0;
+        width: root.width / 2;
+        height: root.height * 0.91;
+        window-height: root.height;
+        window-width: root.width;
+    }
+
+    Rectangle {
+        x: root.width - 93px;
+        y: 45px;
+        width: 48px;
+        height: 48px;
+        border-radius: 24px;
+        background: close-ta.has-hover ? #ffffff29 : #ffffff14;
+        animate background { duration: App.motion ? 150ms : 0ms; }
+        Icon { source: Icons.arrow-down; size: 24px; colorize: #ffffff; }
+        close-ta := TouchArea {
+            mouse-cursor: MouseCursor.pointer;
+            clicked => { App.fullscreen = false; }
+        }
+    }
+}

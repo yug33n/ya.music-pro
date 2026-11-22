@@ -1,0 +1,276 @@
+// Страница «Коллекция».
+
+import { Theme } from "theme.slint";
+import { Icons, Icon, Cover, Shimmer, NavArrows } from "widgets.slint";
+import { T, App, Page, CardItem, TopArtistItem } from "state.slint";
+import { TrackRow, BlockHeader, Tab } from "rows.slint";
+
+component EntityCard inherits Rectangle {
+    in property <image> cover;
+    in property <string> title;
+    in property <string> subtitle;
+    callback clicked;
+    height: 186px + 8px + 18px + (subtitle != "" ? 18px : 0px);
+    Cover {
+        y: 0;
+        width: 186px;
+        height: 186px;
+        radius: Theme.radius-size-l;
+        source: cover;
+        if ta.has-hover: Rectangle { background: #0000001a; }
+    }
+    Text {
+        y: 194px;
+        width: 186px;
+        text: title;
+        overflow: elide;
+        font-size: Theme.font-size-label-s;
+        font-weight: 500;
+        color: Theme.controls-color-primary-text-enabled-variant;
+    }
+    if subtitle != "": Text {
+        y: 212px;
+        width: 186px;
+        text: subtitle;
+        overflow: elide;
+        font-size: Theme.font-size-label-s;
+        font-weight: 500;
+        color: Theme.controls-color-primary-text-enabled;
+    }
+    ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component CollectionPage inherits Rectangle {
+    property <length> pad: 25px;
+    property <length> col-w: (self.width - 2 * pad - 24px) / 2;
+
+    Flickable {
+        VerticalLayout {
+            padding-left: pad;
+            padding-right: pad;
+            padding-top: 57px;
+            padding-bottom: 48px;
+            alignment: start;
+
+            Text {
+                text: T.t("Коллекция");
+                font-family: "YS Music Headline";
+                font-size: Theme.font-size-headline-xl;
+                font-weight: 700;
+                color: Theme.controls-color-primary-text-enabled-variant;
+            }
+            HorizontalLayout {
+                alignment: start;
+                Text {
+                    text: T.t("У вашей музыки есть ");
+                    font-size: Theme.font-size-label-m;
+                    font-weight: 500;
+                    color: Theme.controls-color-primary-text-enabled;
+                }
+                Text {
+                    text: T.t("цвет");
+                    font-size: Theme.font-size-label-m;
+                    font-weight: 500;
+                    color: #d317c7;
+                }
+            }
+
+            // «Мне нравится»: обложка 58, заголовок, превью в две колонки.
+            Rectangle {
+                height: 336px + 52px;
+                Rectangle {
+                    y: 52px;
+                    Cover {
+                        x: 0;
+                        y: 0;
+                        width: 58px;
+                        height: 58px;
+                        radius: Theme.radius-size-m;
+                        source: App.likes-cover;
+                    }
+                    BlockHeader {
+                        x: 70px;
+                        y: 6px;
+                        text: T.t("Мне нравится");
+                        clicked => { App.open-likes(); }
+                    }
+                    Text {
+                        x: 70px;
+                        y: 32px;
+                        text: App.likes-subtitle;
+                        font-size: Theme.font-size-label-m;
+                        font-weight: 500;
+                        color: Theme.controls-color-primary-text-enabled;
+                    }
+                    if App.coll-loading: Rectangle {
+                        y: 82px;
+                        for i in 8: Shimmer {
+                            x: mod(i, 2) * (col-w + 24px);
+                            y: floor(i / 2) * 56px + 8px;
+                            width: 40px;
+                            height: 40px;
+                            border-radius: Theme.radius-size-s;
+                        }
+                    }
+                    for t[i] in App.likes-preview: TrackRow {
+                        x: floor(i / 4) * (col-w + 24px);
+                        y: 82px + mod(i, 4) * 56px - 8px;
+                        width: col-w;
+                        item: t;
+                        block: "likes-preview";
+                        index: i;
+                        play => { App.play-likes-preview(i); }
+                        like => { App.like-preview(i); }
+                    }
+                }
+            }
+
+            // «Любимые исполнители»: топ месяца.
+            if App.top-artists.length > 0: Rectangle {
+                height: 342px;
+                clip: true;
+                BlockHeader { x: 0; y: 0; text: T.t("Любимые исполнители"); clicked => { App.navigate(Page.artists); } }
+                for a[i] in App.top-artists: Rectangle {
+                    x: i * 207px;
+                    y: 45px;
+                    width: 191px;
+                    height: 191px + 64px;
+                    Cover {
+                        y: 0;
+                        width: 191px;
+                        height: 191px;
+                        round: true;
+                        source: a.cover;
+                    }
+                    HorizontalLayout {
+                        y: 199px;
+                        width: parent.width;
+                        height: 20px;
+                        alignment: center;
+                        Text {
+                            text: a.rank;
+                            font-size: Theme.font-size-label-m;
+                            font-weight: 700;
+                            color: Theme.controls-color-primary-text-enabled-variant;
+                        }
+                        Icon {
+                            source: a.trend == 0 ? Icons.crown : a.trend == 2 ? Icons.chart-up : a.trend == 3 ? Icons.chart-down : a.trend == 4 ? Icons.chart-new : Icons.chart-same;
+                            size: 20px;
+                            colorize: a.trend == 0 ? Theme.controls-color-primary-default-enabled : Theme.controls-color-primary-text-enabled;
+                        }
+                    }
+                    Text {
+                        y: 220px;
+                        width: parent.width;
+                        horizontal-alignment: center;
+                        text: a.name;
+                        overflow: elide;
+                        font-size: Theme.font-size-label-s;
+                        font-weight: 500;
+                        color: Theme.controls-color-primary-text-enabled-variant;
+                    }
+                    Text {
+                        y: 237px;
+                        width: parent.width;
+                        horizontal-alignment: center;
+                        text: a.time;
+                        font-size: Theme.font-size-label-s;
+                        font-weight: 500;
+                        color: Theme.controls-color-primary-text-enabled;
+                    }
+                    TouchArea {
+                        mouse-cursor: MouseCursor.pointer;
+                        clicked => { App.open-top-artist(i); }
+                    }
+                }
+            }
+
+            // «Мои плейлисты»: вкладки и карточки 186.
+            Rectangle {
+                height: 402px;
+                property <int> shift: App.playlist-tab == 0 ? 1 : 0;
+                BlockHeader { x: 0; y: 0; text: T.t("Мои плейлисты"); clicked => { App.open-grid("playlists", T.t("Плейлисты")); } }
+                HorizontalLayout {
+                    y: 37px;
+                    height: 36px;
+                    spacing: 8px;
+                    alignment: start;
+                    for t[i] in App.playlist-tabs: Tab {
+                        text: t;
+                        selected: i == App.playlist-tab;
+                        clicked => { App.select-playlist-tab(i); }
+                    }
+                }
+                if shift == 1: Rectangle {
+                    x: 0;
+                    y: 89px;
+                    width: 186px;
+                    height: 186px + 26px;
+                    Rectangle {
+                        y: 0;
+                        height: 186px;
+                        border-radius: Theme.radius-size-s;
+                        background: new-ta.has-hover ? Theme.controls-color-secondary-default-enabled : Theme.controls-color-secondary-default-disabled;
+                        animate background { duration: App.motion ? 150ms : 0ms; }
+                        Icon { source: Icons.add-large; size: 40px; colorize: Theme.controls-color-primary-text-enabled; }
+                    }
+                    Text {
+                        y: 194px;
+                        text: T.t("Новый плейлист");
+                        font-size: Theme.font-size-label-s;
+                        font-weight: 500;
+                        color: Theme.controls-color-primary-text-enabled-variant;
+                    }
+                    new-ta := TouchArea {
+                        mouse-cursor: MouseCursor.pointer;
+                        clicked => { App.create-playlist(); }
+                    }
+                }
+                for p[i] in App.playlists: EntityCard {
+                    x: (i + parent.shift) * 202px;
+                    y: 89px;
+                    width: 186px;
+                    visible: self.x + self.width <= root.width - 2 * pad + 1px;
+                    cover: p.cover;
+                    title: p.title;
+                    clicked => { App.open-playlist(i); }
+                }
+            }
+
+            // «Любимые альбомы».
+            if App.albums.length > 0: Rectangle {
+                height: 420px;
+                BlockHeader { x: 0; y: 0; text: T.t("Любимые альбомы"); clicked => { App.open-grid("albums", T.t("Любимые альбомы")); } }
+                HorizontalLayout {
+                    y: 37px;
+                    height: 36px;
+                    spacing: 8px;
+                    alignment: start;
+                    for t[i] in App.album-tabs: Tab {
+                        text: t;
+                        selected: i == App.album-tab;
+                        clicked => { App.select-album-tab(i); }
+                    }
+                }
+                for a[i] in App.albums: EntityCard {
+                    x: i * 202px;
+                    y: 89px;
+                    width: 186px;
+                    visible: self.x + self.width <= root.width - 2 * pad + 1px;
+                    cover: a.cover;
+                    title: a.title;
+                    subtitle: a.subtitle;
+                    clicked => { App.open-album(i); }
+                }
+            }
+        }
+    }
+
+    NavArrows {
+        x: pad;
+        y: 13px;
+    }
+}

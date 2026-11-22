@@ -1,0 +1,407 @@
+// Главное окно: своя рамка, навбар, страницы, нижний плеер и всплывающие слои поверх.
+
+import { Theme } from "theme.slint";
+import { Icons, Icon, IconButton, CircleButton, PillButton, Cover, Shimmer, Fade } from "widgets.slint";
+import { Navbar } from "navbar.slint";
+import { PlayerBar, MiniPlayer } from "playerbar.slint";
+import { ListPage } from "list.slint";
+import { CollectionPage } from "collection.slint";
+import { WavePage } from "wave.slint";
+import { SearchPage } from "search.slint";
+import { ArtistPage } from "artist.slint";
+import { MyArtistsPage } from "artists.slint";
+import { GridPage } from "grid.slint";
+import { AccountMenu, SettingsPage, LoginScreen } from "account.slint";
+import { FullscreenPlayer } from "fullscreen.slint";
+import { TrackMenu, SoundSettings } from "popups.slint";
+import { T, App, Page, TrackItem, PinItem, CardItem, TopArtistItem, WheelEntry, ChartRow, LyricLine, MenuEntry } from "state.slint";
+import { LandingPage, ChartPage } from "landing.slint";
+import { HistoryPage } from "history.slint";
+
+export { Theme, Icons, App, T, Page, TrackItem, PinItem, CardItem, TopArtistItem, WheelEntry, ChartRow, LyricLine, MenuEntry }
+
+component CaptionButton inherits Rectangle {
+    in property <int> kind; // 0 свернуть, 1 развернуть, 2 закрыть, 3 мини-плеер
+    in property <bool> maximized;
+    callback clicked;
+    width: 46px;
+    height: 32px;
+    background: ta.has-hover ? (kind == 2 ? #c42b1c : Theme.controls-color-secondary-default-hovered) : transparent;
+    animate background { duration: App.motion ? 150ms : 0ms; }
+    property <brush> ink: ta.has-hover && kind == 2 ? #fff : Theme.controls-color-secondary-on-outline-enabled;
+    if kind == 0: Rectangle {
+        width: 10px; height: 1px;
+        background: ink;
+    }
+    if kind == 1 && !maximized: Rectangle {
+        width: 10px; height: 10px;
+        border-width: 1px; border-color: ink; border-radius: 1px;
+    }
+    if kind == 1 && maximized: Path {
+        width: 10px; height: 10px;
+        commands: "M 2 2.5 H 7.5 V 10 H 0 V 2.5 Z M 2.5 2.5 V 0.5 H 9.5 V 7.5 H 7.5";
+        stroke: ink; stroke-width: 1px;
+        viewbox-width: 10; viewbox-height: 10;
+    }
+    if kind == 3: Rectangle {
+        width: 10px; height: 8px;
+        border-width: 1px; border-color: ink; border-radius: 1px;
+        Rectangle { x: 4px; y: 3px; width: 4px; height: 3px; background: ink; }
+    }
+    if kind == 2: Path {
+        width: 10px; height: 10px;
+        commands: "M 0 0 L 10 10 M 10 0 L 0 10";
+        stroke: ink; stroke-width: 1px;
+        viewbox-width: 10; viewbox-height: 10;
+    }
+    ta := TouchArea { clicked => { root.clicked(); } }
+}
+
+component ResizeEdge inherits TouchArea {
+    in property <int> dir;
+    mouse-cursor: dir == 0 || dir == 4 ? MouseCursor.ns-resize
+        : dir == 2 || dir == 6 ? MouseCursor.ew-resize
+        : dir == 1 || dir == 5 ? MouseCursor.nesw-resize : MouseCursor.nwse-resize;
+    pointer-event(e) => {
+        if e.kind == PointerEventKind.down && e.button == PointerEventButton.left {
+            App.resize-window(dir);
+        }
+    }
+}
+
+export component AppWindow inherits Window {
+    title: App.app-name;
+    no-frame: true;
+    always-on-top: App.mini;
+    preferred-width: 1280px;
+    preferred-height: 800px;
+    min-width: App.mini ? 320px : 960px;
+    min-height: App.mini ? 88px : 640px;
+    default-font-family: "YS Text";
+    default-font-size: 16px;
+    background: Theme.background-color-primary-enabled-basic;
+
+    property <bool> new-vibe: App.page == Page.wave;
+    changed width => { App.window-resized(); }
+    property <length> pad: 8px;
+    property <length> top: 32px;
+    // 204 или 72 в свёрнутом виде, переход 150 мс, как у оригинала.
+    property <length> navbar-w: App.nav-collapsed ? 72px : 204px;
+    animate navbar-w { duration: App.motion ? 150ms : 0ms; easing: ease-in-out; }
+    property <length> gap: Theme.spacer-size-m;
+    property <length> pad-r: 12px;
+    property <length> bar-h: new-vibe ? 0px : 80px;
+
+    // Фон «Моей волны»: 16 ступеней палитры трека справа налево, как у оригинала.
+    // На паузе все ступени чёрные: сплошная заливка вместо градиента на всё окно.
+    if new-vibe: Rectangle {
+        property <bool> flat: App.vibe-stops[0] == App.vibe-stops[15] && App.vibe-stops[0] == App.vibe-stops[7];
+        background: flat ? App.vibe-stops[0] : @linear-gradient(270deg,
+            App.vibe-stops[0] 0%, App.vibe-stops[1] 10%, App.vibe-stops[2] 19%, App.vibe-stops[3] 25%,
+            App.vibe-stops[4] 30%, App.vibe-stops[5] 34%, App.vibe-stops[6] 37%, App.vibe-stops[7] 40%,
+            App.vibe-stops[8] 42%, App.vibe-stops[9] 44%, App.vibe-stops[10] 47%, App.vibe-stops[11] 50%,
+            App.vibe-stops[12] 54%, App.vibe-stops[13] 60%, App.vibe-stops[14] 67%, App.vibe-stops[15] 75%);
+    }
+
+    navbar := Navbar {
+        x: pad;
+        y: top - 16px;
+        width: navbar-w;
+        height: parent.height - self.y - pad-r;
+    }
+
+    content := Rectangle {
+        x: pad + navbar-w + gap;
+        y: new-vibe ? 20px : top;
+        width: parent.width - self.x - pad-r;
+        height: new-vibe ? parent.height - 20px : parent.height - top - pad-r - (bar-h > 0 ? bar-h + gap : 0px);
+        border-radius: new-vibe ? 0 : Theme.radius-size-xl;
+        border-width: new-vibe ? 0 : 1px;
+        border-color: Theme.outline-color-primary-disabled;
+        background: new-vibe ? transparent : Theme.background-color-primary-enabled-content;
+        // На волне пятно выходит за край контента: обрезка дала бы видимую границу.
+        clip: !new-vibe;
+
+        if App.page == Page.list: Fade { rise: 8px; ListPage { } }
+        if App.page == Page.collection: Fade { rise: 8px; CollectionPage { } }
+        if App.page == Page.wave: Fade { rise: 8px; WavePage { } }
+        if App.page == Page.search: Fade { rise: 8px; SearchPage { } }
+        if App.page == Page.artist: Fade { rise: 8px; ArtistPage { } }
+        if App.page == Page.artists: Fade { rise: 8px; MyArtistsPage { } }
+        if App.page == Page.settings: Fade { rise: 8px; SettingsPage { } }
+        if App.page == Page.grid: Fade { rise: 8px; GridPage { } }
+        if App.page == Page.trends || App.page == Page.concerts || App.page == Page.nonmusic: Fade { rise: 8px; LandingPage { } }
+        if App.page == Page.chart: Fade { rise: 8px; ChartPage { } }
+        if App.page == Page.history: Fade { rise: 8px; HistoryPage { } }
+        if App.page != Page.list && App.page != Page.collection && App.page != Page.wave && App.page != Page.search && App.page != Page.artist && App.page != Page.artists && App.page != Page.settings && App.page != Page.grid && App.page != Page.trends && App.page != Page.concerts && App.page != Page.nonmusic && App.page != Page.chart && App.page != Page.history: Text {
+            text: T.t("Раздел в разработке");
+            color: Theme.controls-color-primary-text-enabled;
+            font-size: Theme.font-size-headline-xs;
+        }
+    }
+
+    // Обложка на всё окно: плашка с отступом 13 поверх контента, картинка по центру, крестик 32.
+    if App.cover-open: Fade {
+        x: content.x;
+        y: content.y;
+        width: content.width;
+        height: content.height;
+        Rectangle {
+        border-radius: Theme.radius-size-xl;
+        background: #0000000d;
+        TouchArea { clicked => { App.cover-open = false; } }
+        modal := Rectangle {
+            x: 13px;
+            y: 13px;
+            width: parent.width - 26px;
+            height: parent.height - 26px;
+            border-radius: Theme.radius-size-xl;
+            border-width: 1px;
+            border-color: Theme.outline-color-primary-disabled;
+            background: Theme.background-color-primary-enabled-content;
+            TouchArea { }
+            property <length> side: min(self.height - 114px, self.width - 114px);
+            Rectangle {
+                x: (parent.width - parent.side) / 2;
+                y: (parent.height - parent.side) / 2;
+                width: parent.side;
+                height: parent.side;
+                border-radius: Theme.radius-size-m;
+                clip: true;
+                Image { width: parent.width; height: parent.height; source: App.cover-view; image-fit: cover; }
+            }
+            Rectangle {
+                x: parent.width - 53px;
+                y: 17px;
+                width: 32px;
+                height: 32px;
+                border-radius: 16px;
+                background: close-ta.has-hover ? Theme.controls-color-secondary-default-hovered : #0000001a;
+                animate background { duration: App.motion ? 150ms : 0ms; }
+                Icon { source: Icons.close-small; size: 20px; colorize: Theme.controls-color-primary-text-enabled-variant; }
+                close-ta := TouchArea { mouse-cursor: MouseCursor.pointer; clicked => { App.cover-open = false; } }
+            }
+        }
+        }
+    }
+
+    if bar-h > 0: PlayerBar {
+        x: content.x;
+        y: parent.height - pad-r - 80px;
+        width: content.width;
+        height: 80px;
+    }
+
+    if App.fullscreen: Fade {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: parent.height;
+        rise: 48px;
+        FullscreenPlayer { }
+    }
+
+    if App.eq-open: TouchArea {
+        clicked => { App.eq-open = false; }
+    }
+    // Настройки звука, как QualitySettingsModal: в правом нижнем углу с отступом 16.
+    if App.eq-open: Fade {
+        x: parent.width - sound.width - 16px;
+        y: parent.height - sound.height - 16px;
+        width: sound.width;
+        height: sound.height;
+        rise: 8px;
+        sound := SoundSettings { }
+    }
+
+    if App.menu-open: Fade {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: parent.height;
+        TrackMenu { }
+    }
+
+    if App.account-open: Fade {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: parent.height;
+        rise: 8px;
+        AccountMenu { }
+    }
+
+    if App.logged-out: LoginScreen {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: parent.height;
+    }
+
+    // Перетаскивание окна за полосу заголовка.
+    TouchArea {
+        x: App.fullscreen ? 0 : content.x;
+        y: 0;
+        width: parent.width - self.x - 4 * 46px;
+        height: new-vibe && !App.fullscreen ? 20px : top;
+        pointer-event(e) => {
+            if e.kind == PointerEventKind.down && e.button == PointerEventButton.left {
+                App.drag-window();
+            }
+        }
+        double-clicked => { App.toggle-maximize(); }
+    }
+
+    HorizontalLayout {
+        x: parent.width - 4 * 46px;
+        y: 0;
+        height: 32px;
+        CaptionButton { kind: 3; clicked => { App.toggle-mini(); } }
+        CaptionButton { kind: 0; clicked => { App.minimize(); } }
+        CaptionButton { kind: 1; maximized: App.maximized; clicked => { App.toggle-maximize(); } }
+        CaptionButton { kind: 2; clicked => { App.close(); } }
+    }
+
+    if !App.maximized: ResizeEdge { dir: 0; x: 8px; y: 0; width: parent.width - 16px - 4 * 46px; height: 4px; }
+    if !App.maximized: ResizeEdge { dir: 4; x: 8px; y: parent.height - 4px; width: parent.width - 16px; height: 4px; }
+    if !App.maximized: ResizeEdge { dir: 6; x: 0; y: 8px; width: 4px; height: parent.height - 16px; }
+    if !App.maximized: ResizeEdge { dir: 2; x: parent.width - 4px; y: 32px; width: 4px; height: parent.height - 40px; }
+    if !App.maximized: ResizeEdge { dir: 7; x: 0; y: 0; width: 8px; height: 8px; }
+    if !App.maximized: ResizeEdge { dir: 5; x: 0; y: parent.height - 8px; width: 8px; height: 8px; }
+    if !App.maximized: ResizeEdge { dir: 3; x: parent.width - 8px; y: parent.height - 8px; width: 8px; height: 8px; }
+
+    // Уведомление, как BaseNotification: полупрозрачная плашка, обложка 40 и текст.
+    if App.toast != "": Rectangle {
+        property <length> cover-w: App.toast-has-cover ? 40px + 8px : 0px;
+        property <float> k: App.motion ? 0 : 1;
+        init => { k = 1; }
+        animate k { duration: App.motion ? 250ms : 0ms; easing: ease-out; }
+        opacity: k;
+        x: (parent.width - self.width) / 2;
+        y: parent.height - (App.page == Page.wave ? 96px : 140px) + (1 - k) * 16px;
+        width: min(parent.width * 0.9, max(App.toast-has-cover ? 360px : 0px, toast-text.preferred-width + cover-w + 32px));
+        height: 56px;
+        border-radius: Theme.radius-size-l;
+        background: Theme.background-color-primary-enabled-popover;
+        border-width: 1px;
+        border-color: Theme.controls-color-secondary-outline-selected;
+        drop-shadow-blur: 20px;
+        drop-shadow-offset-y: 1px;
+        drop-shadow-color: #0000003d;
+        if App.toast-has-cover: Cover {
+            x: 8px;
+            width: 40px;
+            height: 40px;
+            radius: Theme.radius-size-s;
+            source: App.toast-cover;
+        }
+        toast-text := Text {
+            x: 16px + cover-w - (App.toast-has-cover ? 8px : 0px);
+            width: parent.width - self.x - 16px;
+            text: App.toast;
+            overflow: elide;
+            vertical-alignment: center;
+            color: Theme.controls-color-primary-text-enabled-variant;
+            font-size: Theme.font-size-label-m;
+            font-weight: 500;
+        }
+    }
+
+    // «Доступна версия …» — как NotificationUpdate оригинала: та же плашка уведомления,
+    // справа кнопка «Обновить». Висит, пока не обновятся.
+    if App.update-version != "": Rectangle {
+        property <float> k: App.motion ? 0 : 1;
+        init => { k = 1; }
+        animate k { duration: App.motion ? 250ms : 0ms; easing: ease-out; }
+        opacity: k;
+        x: (parent.width - self.width) / 2;
+        y: Theme.spacer-size-m - (1 - k) * 16px;
+        width: min(parent.width * 0.9, update-text.preferred-width + Theme.spacer-size-l + Theme.spacer-size-m + changes.width + Theme.spacer-size-m + update-btn.width + Theme.spacer-size-xxs);
+        height: update-btn.height + 2 * Theme.spacer-size-xxs;
+        border-radius: Theme.radius-size-l;
+        background: Theme.background-color-primary-enabled-popover;
+        border-width: 1px;
+        border-color: Theme.controls-color-secondary-outline-selected;
+        drop-shadow-blur: 20px;
+        drop-shadow-offset-y: 1px;
+        drop-shadow-color: #0000003d;
+        update-text := Text {
+            x: Theme.spacer-size-l;
+            width: changes.x - self.x - Theme.spacer-size-m;
+            text: T.t("Доступна версия ") + App.update-version;
+            overflow: elide;
+            vertical-alignment: center;
+            color: Theme.controls-color-primary-text-enabled-variant;
+            font-size: Theme.font-size-label-m;
+            font-weight: 500;
+        }
+        // Ссылка на список изменений, чтобы перед обновлением было видно, что поменялось в коде.
+        changes := Text {
+            x: update-btn.x - self.width - Theme.spacer-size-m;
+            text: T.t("Что изменилось");
+            vertical-alignment: center;
+            color: changes-ta.has-hover ? Theme.controls-color-primary-text-enabled-variant : Theme.controls-color-primary-text-enabled;
+            font-size: Theme.font-size-label-m;
+            font-weight: 500;
+            changes-ta := TouchArea {
+                mouse-cursor: MouseCursor.pointer;
+                clicked => { App.update-changes(); }
+            }
+        }
+        update-btn := Rectangle {
+            x: parent.width - self.width - Theme.spacer-size-xxs;
+            width: max(126px, update-label.preferred-width + 2 * Theme.spacer-size-l);
+            height: 32px;
+            border-radius: self.height / 2;
+            background: update-ta.pressed ? Theme.controls-color-secondary-default-pressed
+                : update-ta.has-hover ? Theme.controls-color-secondary-default-hovered
+                : Theme.controls-color-secondary-default-enabled;
+            opacity: App.update-busy ? 0.6 : 1;
+            update-label := Text {
+                text: App.update-busy ? T.t("Загрузка…") : T.t("Обновить");
+                color: Theme.controls-color-secondary-on-default-enabled;
+                font-size: Theme.font-size-label-m;
+                font-weight: 500;
+            }
+            update-ta := TouchArea {
+                enabled: !App.update-busy;
+                mouse-cursor: MouseCursor.pointer;
+                clicked => { App.update-install(); }
+            }
+        }
+    }
+
+    // Пояснение к «!»: над значком, как всплывающая подсказка оригинала.
+    if App.hint-open: Rectangle {
+        x: max(8px, min(parent.width - self.width - 8px, App.hint-x - self.width / 2));
+        y: App.hint-y - self.height - 8px;
+        width: hint-label.preferred-width + 24px;
+        height: 32px;
+        border-radius: Theme.radius-size-m;
+        background: Theme.dark ? #262626 : #1a1a1a;
+        drop-shadow-blur: 8px;
+        drop-shadow-color: #0000003d;
+        hint-label := Text {
+            text: App.hint-text;
+            font-size: Theme.font-size-label-m;
+            font-weight: 500;
+            color: #ffffffe6;
+        }
+    }
+
+    if App.mini: MiniPlayer {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: parent.height;
+    }
+
+    // Почти прозрачный фон обязателен: пустой Rectangle Slint не рисует и место не обновит.
+    if App.repaint: Rectangle {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: parent.height;
+        background: #00000001;
+    }
+}

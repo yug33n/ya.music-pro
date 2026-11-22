@@ -1,0 +1,550 @@
+// Меню профиля (в стиле Яндекс ID), страница настроек и экран входа по коду.
+
+import { Theme } from "theme.slint";
+import { Icons, Icon, Cover, NavCircle, PillButton } from "widgets.slint";
+import { T, App } from "state.slint";
+
+// Меню профиля — окно Яндекс ID оригинала (iframe yandex.ru/user-id): 320 в ширину,
+// пункты 44, подменю языка и темы всплывают поверх. Иконки сняты с самого окна.
+component IdRow inherits Rectangle {
+    in property <image> icon;
+    in property <string> text;
+    in property <bool> active;
+    in property <color> ink;
+    callback clicked;
+    height: 44px;
+    border-radius: 12px;
+    background: ta.has-hover || active ? #b4b8cc42 : transparent;
+    animate background { duration: App.motion ? 150ms : 0ms; }
+    Image { x: 16px; width: 24px; height: 24px; source: icon; colorize: ink; }
+    Text {
+        x: 56px;
+        text: root.text;
+        vertical-alignment: center;
+        font-size: 16px;
+        font-weight: 400;
+        color: ink;
+    }
+    ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+component PickRow inherits Rectangle {
+    in property <image> icon;
+    in property <string> code;
+    in property <string> text;
+    in property <bool> selected;
+    in property <color> ink;
+    callback clicked;
+    height: 48px;
+    border-radius: 16px;
+    background: selected || ta.has-hover ? #b4b8cc33 : transparent;
+    animate background { duration: App.motion ? 150ms : 0ms; }
+    if code == "": Image { x: 20px; width: 24px; height: 24px; source: icon; colorize: ink; }
+    if code != "": Text {
+        x: 20px;
+        text: code;
+        vertical-alignment: center;
+        font-size: 16px;
+        color: #8f8fa3;
+    }
+    Text {
+        x: code == "" ? 56px : 50px;
+        text: root.text;
+        vertical-alignment: center;
+        font-size: 16px;
+        font-weight: 400;
+        color: ink;
+    }
+    if selected: Image { x: parent.width - 44px; width: 24px; height: 24px; source: Icons.id-check; colorize: ink; }
+    ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+component Toggle inherits Rectangle {
+    in property <bool> on;
+    width: 32px;
+    height: 20px;
+    border-radius: 10px;
+    background: on ? #ffee00 : Theme.dark ? #ffffff1f : #00000012;
+    Rectangle {
+        x: on ? 14px : 2px;
+        y: 2px;
+        width: 16px;
+        height: 16px;
+        border-radius: 8px;
+        background: on ? #000000 : Theme.dark ? #ffffff66 : #ffffffa3;
+        animate x { duration: App.motion ? 150ms : 0ms; }
+    }
+}
+
+export component AccountMenu inherits Rectangle {
+    property <color> ink: Theme.dark ? #ffffff : #262633;
+    property <brush> bg: Theme.dark ? #1f1f22 : #ffffff;
+    property <string> lang-name: App.lang == "en" ? "English" : App.lang == "uz" ? "O‘zbek" : App.lang == "kk" ? "Қазақша" : "Русский";
+
+    function act(id: string) {
+        App.account-sub = -1;
+        App.account-action(id);
+    }
+
+    TouchArea {
+        clicked => {
+            App.account-open = false;
+            App.account-sub = -1;
+        }
+        scroll-event(e) => { accept }
+    }
+
+    box := Rectangle {
+        x: 28px;
+        y: root.height - 90px - self.height;
+        width: 320px;
+        height: 443px;
+        border-radius: 24px;
+        background: bg;
+        drop-shadow-blur: 24px;
+        drop-shadow-offset-y: 4px;
+        drop-shadow-color: #00000033;
+        TouchArea {
+            clicked => { App.account-sub = -1; }
+        }
+
+        Image { x: 24px; y: 24px; width: 41px; height: 20px; source: Theme.dark ? Icons.id-logo-dark : Icons.id-logo; }
+        Rectangle {
+            x: 264px;
+            y: 24px;
+            width: 24px;
+            height: 24px;
+            Image { width: 24px; height: 24px; source: Icons.id-close; colorize: ink; }
+            TouchArea {
+                mouse-cursor: MouseCursor.pointer;
+                clicked => {
+                    App.account-open = false;
+                    App.account-sub = -1;
+                }
+            }
+        }
+
+        // Вместо «Войдите в аккаунт» — сам аккаунт.
+        Cover { x: 24px; y: 72px; width: 48px; height: 48px; round: true; source: App.avatar; }
+        Text {
+            x: 84px;
+            y: 72px;
+            width: 204px;
+            height: App.plus ? 28px : 48px;
+            text: App.login;
+            overflow: elide;
+            vertical-alignment: center;
+            font-size: 20px;
+            font-weight: 500;
+            color: ink;
+        }
+        if App.plus: Text {
+            x: 84px;
+            y: 100px;
+            text: T.t("Яндекс Плюс");
+            font-size: 14px;
+            color: #8f8fa3;
+        }
+
+        IdRow { x: 8px; y: 144px; width: 296px; ink: ink; icon: Icons.id-account; text: T.t("Управление аккаунтом"); clicked => { root.act("account"); } }
+        IdRow { x: 8px; y: 188px; width: 296px; ink: ink; icon: Icons.id-settings; text: T.t("Настройки"); clicked => { root.act("settings"); } }
+        IdRow { x: 8px; y: 232px; width: 296px; ink: ink; icon: Icons.id-support; text: T.t("Чат с поддержкой"); clicked => { root.act("support"); } }
+        IdRow {
+            x: 8px;
+            y: 276px;
+            width: 296px;
+            ink: ink;
+            icon: Icons.id-language;
+            text: lang-name;
+            active: App.account-sub == 0;
+            clicked => { App.account-sub = App.account-sub == 0 ? -1 : 0; }
+        }
+        Rectangle { x: 24px; y: 329px; width: 264px; height: 1px; background: #b4b8cc47; }
+        IdRow {
+            x: 8px;
+            y: 339px;
+            width: 296px;
+            ink: ink;
+            icon: Icons.id-appearance;
+            text: T.t("Внешний вид");
+            active: App.account-sub == 1;
+            clicked => { App.account-sub = App.account-sub == 1 ? -1 : 1; }
+        }
+        // Своё, в Яндекс ID такого нет: просили держать под рукой, а не в настройках.
+        IdRow {
+            x: 8px;
+            y: 383px;
+            width: 296px;
+            ink: ink;
+            icon: Icons.explicit;
+            text: T.t("Треки 18+");
+            clicked => { root.act("explicit"); }
+            Toggle { x: parent.width - 16px - self.width; on: App.allow-explicit; }
+        }
+
+        if App.account-sub == 0: Rectangle {
+            x: 12px;
+            y: 276px - 10px - self.height;
+            width: 296px;
+            height: (App.translations ? 4 : 1) * 48px;
+            border-radius: 20px;
+            background: bg;
+            drop-shadow-blur: 16px;
+            drop-shadow-offset-y: 2px;
+            drop-shadow-color: #00000033;
+            TouchArea { }
+            PickRow { y: 0; width: parent.width; ink: ink; code: "ru"; text: "Русский"; selected: App.lang == "ru"; clicked => { root.act("lang:ru"); } }
+            PickRow { y: 48px; visible: App.translations; width: parent.width; ink: ink; code: "en"; text: "English"; selected: App.lang == "en"; clicked => { root.act("lang:en"); } }
+            PickRow { y: 96px; visible: App.translations; width: parent.width; ink: ink; code: "uz"; text: "O‘zbek"; selected: App.lang == "uz"; clicked => { root.act("lang:uz"); } }
+            PickRow { y: 144px; visible: App.translations; width: parent.width; ink: ink; code: "kk"; text: "Қазақша"; selected: App.lang == "kk"; clicked => { root.act("lang:kk"); } }
+        }
+        if App.account-sub == 1: Rectangle {
+            x: 12px;
+            y: 339px - 4px - self.height;
+            width: 296px;
+            height: 3 * 48px;
+            border-radius: 20px;
+            background: bg;
+            drop-shadow-blur: 16px;
+            drop-shadow-offset-y: 2px;
+            drop-shadow-color: #00000033;
+            TouchArea { }
+            PickRow { y: 0; width: parent.width; ink: ink; icon: Icons.id-appearance; text: T.t("Всегда светлый"); selected: App.theme-mode == "light"; clicked => { root.act("theme:light"); } }
+            PickRow { y: 48px; width: parent.width; ink: ink; icon: Icons.id-dark; text: T.t("Всегда тёмный"); selected: App.theme-mode == "dark"; clicked => { root.act("theme:dark"); } }
+            PickRow { y: 96px; width: parent.width; ink: ink; icon: Icons.id-system; text: T.t("Как в системе"); selected: App.theme-mode != "light" && App.theme-mode != "dark"; clicked => { root.act("theme:system"); } }
+        }
+    }
+}
+
+// Пункт настроек: заголовок 16/700, подпись 12/500, справа переключатель или стрелка.
+component SettingItem inherits Rectangle {
+    in property <string> title;
+    in property <string> desc;
+    in property <bool> toggle;
+    in property <bool> on;
+    callback clicked;
+    height: toggle ? (desc != "" ? 42px : 24px) : (desc != "" ? 54px : 32px);
+    property <length> ty: toggle ? 0px : 4px;
+    Text {
+        x: 0;
+        y: ty;
+        width: parent.width - 60px;
+        height: 24px;
+        text: title;
+        vertical-alignment: center;
+        font-size: 16px;
+        font-weight: 700;
+        color: Theme.controls-color-primary-text-enabled-variant;
+    }
+    if desc != "": Text {
+        x: 0;
+        y: ty + (toggle ? 24px : 28px);
+        width: parent.width - 40px;
+        height: 18px;
+        text: desc;
+        overflow: elide;
+        font-size: 12px;
+        font-weight: 500;
+        color: Theme.controls-color-primary-text-enabled;
+    }
+    if toggle: Toggle { x: parent.width - 32px; on: on; }
+    if !toggle: Icon { x: parent.width - 24px; source: Icons.arrow-right; size: 24px; colorize: Theme.controls-color-primary-text-enabled; }
+    TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// Вариант режима работы: кружок выбора, название и подпись.
+component ModeOption inherits Rectangle {
+    in property <string> title;
+    in property <string> desc;
+    in property <bool> selected;
+    callback clicked;
+    height: 42px;
+    Rectangle {
+        x: 0;
+        y: 2px;
+        width: 20px;
+        height: 20px;
+        border-radius: 10px;
+        background: selected ? Theme.controls-color-primary-default-enabled : transparent;
+        border-width: selected ? 0 : 2px;
+        border-color: Theme.controls-color-primary-text-enabled;
+        if selected: Rectangle { width: 8px; height: 8px; border-radius: 4px; background: #000000; }
+    }
+    Text {
+        x: 32px;
+        y: 0;
+        width: parent.width - 32px;
+        height: 24px;
+        text: title;
+        vertical-alignment: center;
+        font-size: 16px;
+        font-weight: 700;
+        color: Theme.controls-color-primary-text-enabled-variant;
+    }
+    Text {
+        x: 32px;
+        y: 24px;
+        width: parent.width - 32px;
+        height: 18px;
+        text: desc;
+        overflow: elide;
+        font-size: 12px;
+        font-weight: 500;
+        color: Theme.controls-color-primary-text-enabled;
+    }
+    TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component SettingsPage inherits Rectangle {
+    Flickable {
+        content-height: list.y + list.preferred-height + 40px;
+        if App.can-back: NavCircle {
+            x: 24px;
+            y: 24px;
+            icon: Icons.arrow-left-small;
+            clicked => { App.go-back(); }
+        }
+        Text {
+            x: App.can-back ? 72px : 24px;
+            y: 24px;
+            height: 32px;
+            text: T.t("Настройки");
+            vertical-alignment: center;
+            font-family: "YS Music Headline";
+            font-size: Theme.font-size-headline-xl;
+            font-weight: 700;
+            color: Theme.controls-color-primary-text-enabled-variant;
+        }
+        list := VerticalLayout {
+            x: 24px;
+            y: 116px;
+            width: 482px;
+            spacing: 36px;
+            alignment: start;
+            SettingItem { title: T.t("Очистить память"); clicked => { App.setting("clear"); } }
+            SettingItem {
+                title: T.t("Эквалайзер");
+                desc: App.eq-on ? T.t("Включен") : T.t("Выключен");
+                clicked => { App.eq-open = true; }
+            }
+            VerticalLayout {
+                spacing: 16px;
+                Text {
+                    height: 24px;
+                    text: T.t("Режим работы");
+                    vertical-alignment: center;
+                    font-size: 16px;
+                    font-weight: 700;
+                    color: Theme.controls-color-primary-text-enabled-variant;
+                }
+                ModeOption {
+                    title: T.t("Плавный");
+                    desc: T.t("Все анимации интерфейса");
+                    selected: App.motion;
+                    clicked => { App.setting("mode:smooth"); }
+                }
+                ModeOption {
+                    title: T.t("Лёгкий");
+                    desc: T.t("Без анимаций, меньше памяти");
+                    selected: !App.motion;
+                    clicked => { App.setting("mode:lite"); }
+                }
+            }
+            SettingItem {
+                title: T.t("Логарифмическая громкость");
+                desc: T.t("Громкость меняется ровнее на слух, тихие уровни настраиваются точнее");
+                toggle: true;
+                on: App.log-volume;
+                clicked => { App.setting("log-volume"); }
+            }
+            SettingItem {
+                title: T.t("Папка для скачивания");
+                desc: App.download-dir;
+                clicked => { App.setting("download-dir"); }
+            }
+            SettingItem {
+                title: T.t("Скачивать в FLAC");
+                desc: T.t("Без потерь, если у трека есть такая версия. Если нет, скачается MP3");
+                toggle: true;
+                on: App.download-flac;
+                clicked => { App.setting("download-flac"); }
+            }
+            if App.hidden-blocks != "": SettingItem {
+                title: T.t("Вернуть скрытые блоки");
+                desc: App.hidden-blocks;
+                clicked => { App.setting("hidden-blocks"); }
+            }
+            SettingItem {
+                title: T.t("Меньше ИИ");
+                desc: T.t("В рекомендациях будет реже встречаться музыка, созданная с помощью ИИ");
+                toggle: true;
+                on: App.less-ai;
+                clicked => { App.setting("less-ai"); }
+            }
+            SettingItem {
+                title: T.t("Статус в Discord");
+                desc: App.discord-on && App.discord-status != "" ? App.discord-status : T.t("Показывать в профиле Discord, что вы слушаете");
+                toggle: true;
+                on: App.discord-on;
+                clicked => { App.setting("discord"); }
+            }
+            SettingItem {
+                title: App.linux ? T.t("Запускать вместе с системой") : T.t("Запускать вместе с Windows");
+                desc: App.linux ? T.t("Приложение откроется при входе в систему") : T.t("Приложение откроется в трее, без окна");
+                toggle: true;
+                on: App.autostart;
+                clicked => { App.setting("autostart"); }
+            }
+            SettingItem {
+                title: T.t("Проверять обновления");
+                desc: T.t("Раз в полчаса спрашивать GitHub, нет ли новой версии");
+                toggle: true;
+                on: App.check-updates;
+                clicked => { App.setting("check-updates"); }
+            }
+            SettingItem {
+                title: T.t("Выйти из аккаунта");
+                desc: App.login;
+                clicked => { App.setting("logout"); }
+            }
+            SettingItem {
+                title: T.t("О приложении");
+                desc: App.app-name + " · " + T.t("Версия ") + App.version;
+                clicked => { App.setting("about"); }
+            }
+        }
+    }
+}
+
+// Вход: код устройства для ya.ru/device. Окно поверх приложения, пока нет токена.
+export component LoginScreen inherits Rectangle {
+    background: Theme.background-color-primary-enabled-basic;
+    property <brush> ink: Theme.controls-color-primary-text-enabled-variant;
+    property <brush> ink2: Theme.controls-color-primary-text-enabled;
+    property <float> appear: App.motion ? 0 : 1;
+    opacity: appear;
+    init => { appear = 1; }
+    animate appear { duration: App.motion ? 300ms : 0ms; easing: ease-out; }
+    TouchArea { }
+
+    card := VerticalLayout {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.preferred-height) / 2 + (1 - root.appear) * 16px;
+        width: 440px;
+        spacing: 0;
+        alignment: start;
+        Rectangle {
+            height: 40px;
+            Image {
+                x: (parent.width - self.width) / 2;
+                height: 32px;
+                source: Theme.dark ? Icons.logo-dark : Icons.logo;
+            }
+        }
+        Rectangle { height: 32px; }
+        Text {
+            text: T.t("Войдите в Яндекс Музыку");
+            horizontal-alignment: center;
+            font-family: "YS Music Headline";
+            font-size: Theme.font-size-headline-xl;
+            font-weight: 700;
+            color: root.ink;
+        }
+        Rectangle { height: 12px; }
+        Text {
+            text: App.login-code == "" ? T.t("Нужен аккаунт Яндекса. Код для входа появится через пару секунд")
+                : T.t("Откройте ya.ru/device в браузере на компьютере или телефоне и введите код");
+            wrap: word-wrap;
+            horizontal-alignment: center;
+            font-size: Theme.font-size-label-l;
+            font-weight: 500;
+            color: root.ink2;
+        }
+        Rectangle { height: 32px; }
+        Rectangle {
+            height: 96px;
+            border-radius: Theme.radius-size-xl;
+            background: Theme.controls-color-secondary-default-enabled;
+            if App.login-code == "" && App.login-error == "": Text {
+                text: "• • •";
+                font-size: 32px;
+                font-weight: 700;
+                color: root.ink2;
+            }
+            if App.login-code != "": HorizontalLayout {
+                alignment: center;
+                spacing: 6px;
+                for ch in App.login-code-chars: Rectangle {
+                    width: 40px;
+                    Text {
+                        text: ch;
+                        font-family: "YS Music Headline";
+                        font-size: 44px;
+                        font-weight: 700;
+                        color: root.ink;
+                    }
+                }
+            }
+            if App.login-code == "" && App.login-error != "": Text {
+                x: 16px;
+                width: parent.width - 32px;
+                text: App.login-error;
+                wrap: word-wrap;
+                horizontal-alignment: center;
+                font-size: Theme.font-size-label-m;
+                font-weight: 500;
+                color: root.ink2;
+            }
+        }
+        Rectangle { height: 24px; }
+        HorizontalLayout {
+            alignment: center;
+            spacing: 8px;
+            if App.login-code != "": PillButton {
+                primary: true;
+                text: T.t("Открыть ya.ru/device");
+                clicked => { App.login-open(); }
+            }
+            if App.login-code != "": PillButton {
+                text: T.t("Скопировать код");
+                clicked => { App.login-copy(); }
+            }
+            if App.login-code == "" && App.login-error != "": PillButton {
+                primary: true;
+                text: T.t("Получить новый код");
+                clicked => { App.login-start(); }
+            }
+        }
+        Rectangle { height: 20px; }
+        if App.login-code != "": Text {
+            text: T.t("Ждём подтверждения. Код действует 5 минут");
+            horizontal-alignment: center;
+            font-size: Theme.font-size-label-s;
+            font-weight: 500;
+            color: root.ink2;
+        }
+    }
+
+    // Чтобы было видно, что это не официальное приложение: то же имя Яндекс покажет на ya.ru/device.
+    Text {
+        y: parent.height - self.height - 24px;
+        width: parent.width;
+        text: App.app-name + " · неофициальный клиент";
+        horizontal-alignment: center;
+        font-size: Theme.font-size-label-s;
+        font-weight: 500;
+        color: root.ink2;
+    }
+}

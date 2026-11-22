@@ -1,0 +1,185 @@
+// Левая панель навигации с закреплёнными плейлистами.
+
+import { Theme } from "theme.slint";
+import { Icons, Icon, Cover } from "widgets.slint";
+import { T, App, Page } from "state.slint";
+
+component NavLink inherits Rectangle {
+    in property <image> icon;
+    in property <image> icon-selected;
+    in property <string> text;
+    in property <Page> page;
+    property <bool> selected: App.page == page;
+    height: 48px;
+    border-radius: Theme.radius-size-l;
+    background: ta.has-hover && !selected ? Theme.controls-color-secondary-default-enabled : transparent;
+    animate background { duration: App.motion ? Theme.duration-transition : 0ms; }
+    Icon {
+        x: 16px;
+        source: selected ? icon-selected : icon;
+        size: 24px;
+        colorize: selected || ta.has-hover ? Theme.controls-color-primary-text-enabled-variant : Theme.controls-color-primary-text-enabled;
+    }
+    if !App.nav-collapsed: Text {
+        x: 52px;
+        text: root.text;
+        font-size: Theme.font-size-label-m;
+        font-weight: 500;
+        color: selected || ta.has-hover ? Theme.controls-color-primary-text-enabled-variant : Theme.controls-color-primary-text-enabled;
+        animate color { duration: App.motion ? Theme.duration-transition : 0ms; }
+    }
+    ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { App.navigate(page); }
+    }
+}
+
+// Навбар — сам TouchArea: так известно, что курсор над ним, и видна кнопка «Свернуть сайдбар».
+export component Navbar inherits TouchArea {
+    property <bool> c: App.nav-collapsed;
+    Image {
+        x: 12px;
+        y: 12px;
+        width: c ? 48px : 171px;
+        height: 48px;
+        source: c ? (Theme.dark ? Icons.logo-mark-dark : Icons.logo-mark) : (Theme.dark ? Icons.logo-dark : Icons.logo);
+        image-fit: contain;
+        TouchArea {
+            mouse-cursor: MouseCursor.pointer;
+            clicked => { App.navigate(Page.wave); }
+        }
+    }
+    // Кнопка 16×28 у логотипа, видна только при наведении на навбар.
+    Rectangle {
+        x: c ? 64px : 183px;
+        y: 22px;
+        width: 16px;
+        height: 28px;
+        border-radius: Theme.radius-size-s;
+        background: Theme.controls-color-secondary-default-enabled;
+        opacity: root.has-hover ? 1 : 0;
+        animate opacity { duration: App.motion ? Theme.duration-transition : 0ms; }
+        Icon {
+            source: c ? Icons.arrow-right-small : Icons.arrow-left-small;
+            size: 20px;
+            colorize: Theme.controls-color-secondary-on-outline-enabled-variant;
+        }
+        TouchArea {
+            enabled: root.has-hover;
+            mouse-cursor: MouseCursor.pointer;
+            clicked => { App.toggle-navbar(); }
+        }
+    }
+
+    VerticalLayout {
+        x: 8px;
+        y: 76px;
+        width: parent.width - 16px;
+        spacing: 4px;
+        NavLink { icon: Icons.nav-search; icon-selected: Icons.nav-search; text: T.t("Поиск"); page: Page.search; }
+        NavLink { icon: Icons.nav-wave; icon-selected: Icons.nav-wave; text: T.t("Моя волна"); page: Page.wave; }
+        NavLink { icon: Icons.nav-trends; icon-selected: Icons.nav-trends-selected; text: T.t("Для вас и Тренды"); page: Page.trends; }
+        NavLink { icon: Icons.nav-concerts; icon-selected: Icons.nav-concerts-selected; text: T.t("Концерты"); page: Page.concerts; }
+        NavLink { icon: Icons.nav-nonmusic; icon-selected: Icons.nav-nonmusic-selected; text: T.t("Книги и подкасты"); page: Page.nonmusic; }
+        NavLink { icon: Icons.nav-collection; icon-selected: Icons.nav-collection-selected; text: T.t("Коллекция"); page: Page.collection; }
+    }
+
+    pins := Flickable {
+        x: 0;
+        y: 76px + 6 * 48px + 5 * 4px + 24px;
+        width: parent.width;
+        height: parent.height - self.y - 72px;
+        content-height: App.pins.length * 56px;
+        for pin[i] in App.pins: Rectangle {
+            x: 8px;
+            y: i * 56px;
+            width: parent.width - 16px;
+            height: 56px;
+            border-radius: Theme.radius-size-l;
+            background: pin-ta.has-hover ? Theme.controls-color-secondary-default-enabled : transparent;
+            animate background { duration: App.motion ? 150ms : 0ms; }
+            Cover {
+                x: 8px;
+                width: 40px;
+                height: 40px;
+                source: pin.cover;
+                round: pin.round;
+                radius: Theme.radius-size-s;
+            }
+            if !c: VerticalLayout {
+                x: 56px;
+                width: 92px;
+                alignment: center;
+                Text {
+                    text: pin.title;
+                    overflow: elide;
+                    font-size: Theme.font-size-label-s;
+                    font-weight: 500;
+                    color: Theme.controls-color-primary-text-enabled-variant;
+                }
+                Text {
+                    text: pin.subtitle;
+                    overflow: elide;
+                    font-size: Theme.font-size-label-s;
+                    font-weight: 500;
+                    color: Theme.controls-color-primary-text-enabled;
+                }
+            }
+            pin-ta := TouchArea {
+                mouse-cursor: MouseCursor.pointer;
+                clicked => { App.open-pin(i); }
+            }
+        }
+    }
+
+    // Профиль: аватар 34 в кольце 2px через 2px, имя и «Плюс».
+    Rectangle {
+        x: 15px;
+        y: parent.height - 61px;
+        width: 42px;
+        height: 42px;
+        border-radius: 21px;
+        background: @linear-gradient(135deg, #ff5c4d 0%, #eb469f 35%, #8341ef 70%, #3f68f9 100%);
+        Rectangle {
+            width: 38px;
+            height: 38px;
+            border-radius: 19px;
+            background: Theme.background-color-primary-enabled-basic;
+        }
+        Cover {
+            width: 34px;
+            height: 34px;
+            round: true;
+            source: App.avatar;
+        }
+    }
+    // Клик по профилю открывает меню Яндекс ID.
+    TouchArea {
+        x: 15px;
+        y: parent.height - 61px;
+        width: parent.width - 19px;
+        height: 42px;
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { App.account-open = !App.account-open; }
+    }
+    if !c: Text {
+        x: 69px;
+        y: parent.height - 62px;
+        width: parent.width - self.x - 4px;
+        text: App.login;
+        overflow: elide;
+        font-size: Theme.font-size-label-m;
+        font-weight: 500;
+        color: Theme.controls-color-primary-text-enabled-variant;
+    }
+    if App.plus && !c: Rectangle {
+        x: 69px;
+        y: parent.height - 38px;
+        width: 66px;
+        height: 20px;
+        border-radius: 10px;
+        background: @linear-gradient(90deg, #ff5c4d 0%, #eb469f 25%, #8341ef 72%, #4f4cf6 100%);
+        Image { x: 4px; y: 3px; width: 14px; height: 14px; source: Icons.plus-badge; colorize: #fff; }
+        Text { x: 21px; text: T.t("Плюс"); color: #fff; font-size: Theme.font-size-label-m; font-weight: 500; }
+    }
+}
