@@ -1,8 +1,10 @@
+pub mod blacklist;
 pub mod commands;
 pub mod events;
 pub mod state;
 pub mod types;
 
+pub use blacklist::BlacklistEngine;
 pub use commands::CoreCommand;
 pub use events::CoreEvent;
 pub use state::AppState;
