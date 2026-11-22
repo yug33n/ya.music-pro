@@ -1,5 +1,6 @@
 pub mod bitperfect;
 pub mod controller;
+pub mod crossfade;
 pub mod decoder;
 pub mod device;
 pub mod gapless;
@@ -10,6 +11,7 @@ pub mod stream;
 mod tests;
 
 pub use bitperfect::{scale_sample_f64_tpdf, BitPerfectConfig, TpdfPrng};
+pub use crossfade::EqualPowerCrossfader;
 pub use gapless::{DecoderSlot, DualBufferPipeline};
 
 pub use controller::{AudioController, AudioEngine, AudioEngineError};
