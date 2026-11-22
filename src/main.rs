@@ -4,6 +4,7 @@ pub mod core;
 pub mod db;
 pub mod dsp;
 pub mod lyrics;
+pub mod platform;
 pub mod ui;
 
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
