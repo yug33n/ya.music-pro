@@ -3,7 +3,7 @@
 ## 1. Метаданные задачи
 - **Номер:** #01
 - **Целевая ветка разработки:** `Branch: feat/scaffolding-and-db`
-- **Статус:** В работе
+- **Статус:** Выполнено (ожидает проверки и мерджа в main)
 
 ---
 
@@ -33,9 +33,9 @@
 - [x] Настроить Cargo.toml со всеми ключевыми зависимостями проекта.
 - [x] Сконфигурировать build.rs для сборки Slint UI файлов и завести минимальный ui/main.slint.
 - [x] Реализовать AppState, каналы сообщений CoreCommand и CoreEvent.
-- [ ] Реализовать SQLite миграции: таблицы config, blacklist, cache_entries, eq_presets.
-- [ ] Написать unit-тесты для миграций и репозитория БД.
-- [ ] Провести финальную валидацию: `cargo check`, `cargo clippy`, `cargo test`.
+- [x] Реализовать SQLite миграции: таблицы config, blacklist, cache_entries, eq_presets.
+- [x] Написать unit-тесты для миграций и репозитория БД.
+- [x] Провести финальную валидацию: `cargo check`, `cargo clippy`, `cargo test`.
 
 ---
 
