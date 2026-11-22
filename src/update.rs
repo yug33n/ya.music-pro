@@ -40,7 +40,7 @@ pub struct Release {
 fn client() -> Result<reqwest::blocking::Client, String> {
     reqwest::blocking::Client::builder()
         // GitHub API без User-Agent отвечает 403.
-        .user_agent(concat!("yamusic-rs/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("ya-music-pro/", env!("CARGO_PKG_VERSION")))
         .timeout(Duration::from_secs(30))
         .connect_timeout(Duration::from_secs(10))
         .build()
@@ -93,7 +93,7 @@ pub fn check() -> Result<Option<Release>, String> {
         page: apk
             .or_else(|| v.get("html_url").and_then(|u| u.as_str()))
             .and_then(crate::client::browser_url)
-            .unwrap_or_else(|| "https://github.com/SpolzerMod/yamusic-rs".to_string()),
+            .unwrap_or_else(|| env!("CARGO_PKG_REPOSITORY").to_string()),
         exe,
     }))
 }
