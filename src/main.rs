@@ -2,6 +2,7 @@ pub mod api;
 pub mod audio;
 pub mod core;
 pub mod db;
+pub mod ui;
 
 slint::include_modules!();
 
