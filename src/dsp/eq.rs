@@ -20,7 +20,7 @@ impl Equalizer10Band {
             1000.0.hz(),
             Q_BUTTERWORTH_F32,
         )
-        .unwrap_or_else(|_| Coefficients {
+        .unwrap_or(Coefficients {
             b0: 1.0,
             b1: 0.0,
             b2: 0.0,
@@ -138,7 +138,8 @@ impl Equalizer10Band {
             return;
         }
 
-        for frame in samples.chunks_exact_mut(2) {
+        let (chunks, _) = samples.as_chunks_mut::<2>();
+        for frame in chunks {
             let mut l = frame[0];
             let mut r = frame[1];
 
