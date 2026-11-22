@@ -20,7 +20,7 @@ pub fn parse_lrc(text: &str) -> Vec<LyricsLine> {
                 if let Some(ms) = parse_timestamp(tag) {
                     timestamps.push(ms);
                 }
-                remaining = &remaining[close_bracket + 1..].trim_start();
+                remaining = remaining[close_bracket + 1..].trim_start();
             } else {
                 break;
             }
