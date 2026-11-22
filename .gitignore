@@ -11,6 +11,7 @@ Cargo.lock.bak
 # Local application data and databases
 cache/
 data/
+issues/
 *.db
 *.db-shm
 *.db-wal

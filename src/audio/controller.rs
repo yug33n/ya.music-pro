@@ -2,6 +2,7 @@ use crate::audio::decoder::SymphoniaDecoder;
 use crate::audio::device::DeviceManager;
 use crate::audio::resampler::AudioResampler;
 use crate::audio::stream::{AudioOutputStream, AudioStreamError};
+use crate::dsp::{Equalizer10Band, LufsNormalizer, SlowedReverb, DEFAULT_TARGET_LUFS};
 use ringbuf::traits::{Observer, Producer};
 use std::fs::File;
 use std::path::Path;
@@ -43,6 +44,12 @@ enum DecoderCommand {
     Seek(u64),
     SetCrossfade(u32),
     Stop,
+    SetEqGains([f32; 10]),
+    SetEqEnabled(bool),
+    SetLufsEnabled(bool),
+    SetTrackLufs(f32),
+    SetSlowedReverbEnabled(bool),
+    SetSlowedSpeed(f32),
 }
 
 #[derive(Clone)]
@@ -96,7 +103,12 @@ impl AudioEngine {
                 let mut resampler: Option<AudioResampler> = None;
                 let mut raw_samples_buf = Vec::with_capacity(4096);
                 let mut resampled_buf = Vec::with_capacity(4096);
+                let mut dsp_buf = Vec::with_capacity(4096);
                 let mut played_frames: u64 = 0;
+
+                let mut equalizer = Equalizer10Band::new(device_sample_rate);
+                let mut lufs_normalizer = LufsNormalizer::new(DEFAULT_TARGET_LUFS, device_sample_rate);
+                let mut slowed_reverb = SlowedReverb::new(device_sample_rate);
 
                 loop {
                     // Check for incoming commands
@@ -183,6 +195,24 @@ impl AudioEngine {
                             DecoderCommand::SetCrossfade(secs) => {
                                 log::info!("Configured equal-power crossfade duration: {} s", secs);
                             }
+                            DecoderCommand::SetEqGains(gains) => {
+                                equalizer.set_gains(&gains);
+                            }
+                            DecoderCommand::SetEqEnabled(enabled) => {
+                                equalizer.set_enabled(enabled);
+                            }
+                            DecoderCommand::SetLufsEnabled(enabled) => {
+                                lufs_normalizer.set_enabled(enabled);
+                            }
+                            DecoderCommand::SetTrackLufs(lufs) => {
+                                lufs_normalizer.set_track_lufs(lufs);
+                            }
+                            DecoderCommand::SetSlowedReverbEnabled(enabled) => {
+                                slowed_reverb.set_enabled(enabled);
+                            }
+                            DecoderCommand::SetSlowedSpeed(speed) => {
+                                slowed_reverb.set_speed(speed);
+                            }
                         }
                     }
 
@@ -208,15 +238,24 @@ impl AudioEngine {
                                     resampled_buf.extend_from_slice(&raw_samples_buf);
                                 }
 
+                                // 1. 10-band Biquad Equalizer
+                                equalizer.process_interleaved_stereo(&mut resampled_buf);
+
+                                // 2. LUFS Loudness Normalization & Peak Limiter
+                                lufs_normalizer.process_interleaved_stereo(&mut resampled_buf);
+
+                                // 3. Realtime Slowed + Reverb
+                                slowed_reverb.process(&resampled_buf, &mut dsp_buf);
+
                                 let vol = (vol_worker.load(Ordering::Relaxed) as f32) / 1000.0;
-                                for sample in &mut resampled_buf {
+                                for sample in &mut dsp_buf {
                                     *sample *= vol;
                                 }
 
                                 // Push samples into lock-free ring buffer
                                 let mut pushed = 0;
-                                while pushed < resampled_buf.len() {
-                                    let chunk = &resampled_buf[pushed..];
+                                while pushed < dsp_buf.len() {
+                                    let chunk = &dsp_buf[pushed..];
                                     let n = producer.push_slice(chunk);
                                     pushed += n;
                                     if n == 0 {
@@ -224,7 +263,7 @@ impl AudioEngine {
                                     }
                                 }
 
-                                let frames_added = (resampled_buf.len() / 2) as u64;
+                                let frames_added = (dsp_buf.len() / 2) as u64;
                                 played_frames += frames_added;
                                 let current_ms = (played_frames * 1000) / device_sample_rate as u64;
                                 pos_worker.store(current_ms, Ordering::Relaxed);
@@ -346,5 +385,29 @@ impl AudioController {
 
     pub fn is_paused(&self) -> bool {
         self.is_paused.load(Ordering::Relaxed)
+    }
+
+    pub fn set_eq_gains(&self, gains: [f32; 10]) {
+        let _ = self.command_tx.send(DecoderCommand::SetEqGains(gains));
+    }
+
+    pub fn set_eq_enabled(&self, enabled: bool) {
+        let _ = self.command_tx.send(DecoderCommand::SetEqEnabled(enabled));
+    }
+
+    pub fn set_lufs_enabled(&self, enabled: bool) {
+        let _ = self.command_tx.send(DecoderCommand::SetLufsEnabled(enabled));
+    }
+
+    pub fn set_track_lufs(&self, lufs: f32) {
+        let _ = self.command_tx.send(DecoderCommand::SetTrackLufs(lufs));
+    }
+
+    pub fn set_slowed_reverb_enabled(&self, enabled: bool) {
+        let _ = self.command_tx.send(DecoderCommand::SetSlowedReverbEnabled(enabled));
+    }
+
+    pub fn set_slowed_speed(&self, speed: f32) {
+        let _ = self.command_tx.send(DecoderCommand::SetSlowedSpeed(speed));
     }
 }
