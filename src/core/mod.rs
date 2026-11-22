@@ -1,10 +1,12 @@
 pub mod blacklist;
+pub mod cache;
 pub mod commands;
 pub mod events;
 pub mod state;
 pub mod types;
 
 pub use blacklist::BlacklistEngine;
+pub use cache::{CacheError, PrecacheManager, QUOTA_10_GB, QUOTA_25_GB, QUOTA_5_GB};
 pub use commands::CoreCommand;
 pub use events::CoreEvent;
 pub use state::AppState;
