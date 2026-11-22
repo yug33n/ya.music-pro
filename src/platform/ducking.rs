@@ -186,6 +186,29 @@ impl WindowsSessionMonitor {
     }
 }
 
+/// Spawns a background OS thread that continuously polls Core Audio VoIP sessions and updates AudioController
+pub fn start_voice_activity_monitor(
+    controller: crate::audio::AudioController,
+    poll_interval: std::time::Duration,
+) -> std::thread::JoinHandle<()> {
+    std::thread::Builder::new()
+        .name("os-audio-ducking-monitor".to_string())
+        .spawn(move || {
+            let mut monitor = WindowsSessionMonitor::new();
+            let mut last_state = false;
+
+            loop {
+                let is_active = monitor.is_voice_active();
+                if is_active != last_state {
+                    last_state = is_active;
+                    controller.set_voice_active(is_active);
+                }
+                std::thread::sleep(poll_interval);
+            }
+        })
+        .expect("Failed to spawn os-audio-ducking-monitor thread")
+}
+
 impl Default for WindowsSessionMonitor {
     fn default() -> Self {
         Self::new()

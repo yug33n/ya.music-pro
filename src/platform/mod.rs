@@ -1,3 +1,5 @@
 pub mod ducking;
 
-pub use ducking::{SessionMeterInfo, SessionMonitorError, WindowsSessionMonitor};
+pub use ducking::{
+    start_voice_activity_monitor, SessionMeterInfo, SessionMonitorError, WindowsSessionMonitor,
+};
