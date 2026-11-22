@@ -1,0 +1,284 @@
+import { Theme } from "../theme.slint";
+import { SeekBar } from "seek_bar.slint";
+import { VolumeSlider } from "volume_slider.slint";
+
+export component PlayerBottomBar inherits Rectangle {
+    in property <string> track-title: "Название трека";
+    in property <string> track-artists: "Исполнитель";
+    in property <image> track-cover;
+    in property <bool> is-playing: false;
+    in property <bool> is-liked: false;
+    in property <bool> is-shuffle: false;
+    in property <int> repeat-mode: 0; // 0 = off, 1 = all, 2 = track
+    in property <string> quality-badge: "HQ"; // "FLAC", "HQ", "Bit-Perfect"
+    in property <float> seek-progress: 0.0;
+    in property <string> elapsed-time: "0:00";
+    in property <string> total-duration: "0:00";
+    in property <float> volume: 0.8;
+    in property <bool> is-muted: false;
+
+    callback play-pause-clicked();
+    callback next-clicked();
+    callback prev-clicked();
+    callback shuffle-clicked();
+    callback repeat-clicked();
+    callback like-clicked();
+    callback dislike-clicked();
+    callback seek-requested(float);
+    callback volume-changed(float);
+    callback toggle-mute();
+    callback lyrics-clicked();
+
+    height: Theme.player-height;
+    background: Theme.player-bar-background;
+
+    // Top border line
+    Rectangle {
+        y: 0;
+        width: 100%;
+        height: 1px;
+        background: Theme.border;
+    }
+
+    HorizontalLayout {
+        padding-left: 20px;
+        padding-right: 20px;
+        spacing: 16px;
+
+        // 1. LEFT BLOCK: Track info, cover, like
+        HorizontalLayout {
+            width: 280px;
+            spacing: 12px;
+            alignment: center;
+
+            // Cover
+            cover-box := Rectangle {
+                width: 52px;
+                height: 52px;
+                border-radius: Theme.radius-md;
+                background: #252525;
+                clip: true;
+
+                if root.track-cover.width > 0 : Image {
+                    width: 100%;
+                    height: 100%;
+                    source: root.track-cover;
+                }
+
+                if root.track-cover.width == 0 : Image {
+                    width: 24px;
+                    height: 24px;
+                    source: @image-url("../icons/wave.svg");
+                    colorize: #666666;
+                }
+            }
+
+            // Title & Artists
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                spacing: 2px;
+
+                Text {
+                    text: root.track-title;
+                    color: Theme.text-primary;
+                    font-size: 13px;
+                    font-weight: 700;
+                    font-family: Theme.font-family-text;
+                    overflow: elide;
+                }
+
+                Text {
+                    text: root.track-artists;
+                    color: Theme.text-secondary;
+                    font-size: 12px;
+                    font-family: Theme.font-family-text;
+                    overflow: elide;
+                }
+            }
+
+            // Like Button
+            Rectangle {
+                width: 28px;
+                height: 28px;
+                border-radius: 14px;
+
+                Image {
+                    width: 20px;
+                    height: 20px;
+                    source: root.is-liked ? @image-url("../icons/heart-filled.svg") : @image-url("../icons/heart.svg");
+                    colorize: root.is-liked ? Theme.like-active : (like-touch.has-hover ? #FFFFFF : Theme.text-secondary);
+                }
+
+                like-touch := TouchArea {
+                    clicked => { root.like-clicked(); }
+                }
+            }
+
+            // Dislike Button
+            Rectangle {
+                width: 28px;
+                height: 28px;
+                border-radius: 14px;
+
+                Image {
+                    width: 18px;
+                    height: 18px;
+                    source: @image-url("../icons/dislike.svg");
+                    colorize: dislike-touch.has-hover ? #FFFFFF : Theme.text-muted;
+                }
+
+                dislike-touch := TouchArea {
+                    clicked => { root.dislike-clicked(); }
+                }
+            }
+        }
+
+        // 2. CENTER BLOCK: Controls + SeekBar
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 4px;
+
+            // Control Buttons
+            HorizontalLayout {
+                alignment: center;
+                spacing: 20px;
+
+                // Shuffle
+                Rectangle {
+                    width: 32px;
+                    height: 32px;
+                    Image {
+                        width: 18px;
+                        height: 18px;
+                        source: @image-url("../icons/shuffle.svg");
+                        colorize: root.is-shuffle ? Theme.accent : (shuffle-touch.has-hover ? #FFFFFF : Theme.text-secondary);
+                    }
+                    shuffle-touch := TouchArea { clicked => { root.shuffle-clicked(); } }
+                }
+
+                // Previous
+                Rectangle {
+                    width: 32px;
+                    height: 32px;
+                    Image {
+                        width: 20px;
+                        height: 20px;
+                        source: @image-url("../icons/prev.svg");
+                        colorize: prev-touch.has-hover ? #FFFFFF : Theme.text-secondary;
+                    }
+                    prev-touch := TouchArea { clicked => { root.prev-clicked(); } }
+                }
+
+                // Play / Pause (Large Circle Button)
+                Rectangle {
+                    width: 40px;
+                    height: 40px;
+                    border-radius: 20px;
+                    background: play-touch.has-hover ? #FFFFFF : #E5E5E5;
+                    animate background { duration: 100ms; }
+
+                    Image {
+                        width: 20px;
+                        height: 20px;
+                        source: root.is-playing ? @image-url("../icons/pause.svg") : @image-url("../icons/play.svg");
+                        colorize: #121212;
+                    }
+
+                    play-touch := TouchArea { clicked => { root.play-pause-clicked(); } }
+                }
+
+                // Next
+                Rectangle {
+                    width: 32px;
+                    height: 32px;
+                    Image {
+                        width: 20px;
+                        height: 20px;
+                        source: @image-url("../icons/next.svg");
+                        colorize: next-touch.has-hover ? #FFFFFF : Theme.text-secondary;
+                    }
+                    next-touch := TouchArea { clicked => { root.next-clicked(); } }
+                }
+
+                // Repeat
+                Rectangle {
+                    width: 32px;
+                    height: 32px;
+                    Image {
+                        width: 18px;
+                        height: 18px;
+                        source: @image-url("../icons/repeat.svg");
+                        colorize: root.repeat-mode > 0 ? Theme.accent : (repeat-touch.has-hover ? #FFFFFF : Theme.text-secondary);
+                    }
+                    repeat-touch := TouchArea { clicked => { root.repeat-clicked(); } }
+                }
+            }
+
+            // SeekBar
+            SeekBar {
+                progress: root.seek-progress;
+                elapsed-text: root.elapsed-time;
+                duration-text: root.total-duration;
+                seek-requested(p) => { root.seek-requested(p); }
+            }
+        }
+
+        // 3. RIGHT BLOCK: Quality Badge, Lyrics, Volume
+        HorizontalLayout {
+            width: 280px;
+            alignment: end;
+            spacing: 14px;
+
+            // Audio Quality Badge
+            Rectangle {
+                height: 22px;
+                border-radius: Theme.radius-sm;
+                background: #252525;
+                border-width: 1px;
+                border-color: root.quality-badge == "FLAC" ? Theme.quality-flac : (root.quality-badge == "Bit-Perfect" ? Theme.quality-bitperfect : Theme.quality-hq);
+
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+
+                    Text {
+                        text: root.quality-badge;
+                        font-size: 10px;
+                        font-weight: 800;
+                        font-family: Theme.font-family-text;
+                        color: root.quality-badge == "FLAC" ? Theme.quality-flac : (root.quality-badge == "Bit-Perfect" ? Theme.quality-bitperfect : Theme.quality-hq);
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Lyrics button
+            Rectangle {
+                width: 28px;
+                height: 28px;
+                border-radius: 14px;
+
+                Text {
+                    text: "LRC";
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: lrc-touch.has-hover ? Theme.accent : Theme.text-secondary;
+                    vertical-alignment: center;
+                    horizontal-alignment: center;
+                }
+
+                lrc-touch := TouchArea { clicked => { root.lyrics-clicked(); } }
+            }
+
+            // Volume Slider
+            VolumeSlider {
+                volume: root.volume;
+                is-muted: root.is-muted;
+                volume-changed(v) => { root.volume-changed(v); }
+                toggle-mute => { root.toggle-mute(); }
+            }
+        }
+    }
+}

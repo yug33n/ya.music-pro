@@ -1,14 +1,175 @@
+import { Theme } from "theme.slint";
+import { Sidebar } from "components/sidebar.slint";
+import { PlayerBottomBar } from "components/player_bottom_bar.slint";
+import { WaveView } from "views/wave_view.slint";
+import { CollectionView } from "views/collection_view.slint";
+import { SearchView } from "views/search_view.slint";
+import { TrackData } from "components/track_item.slint";
+
 export component MainWindow inherits Window {
     title: "ya.music-pro";
-    min-width: 800px;
-    min-height: 600px;
-    background: #121212;
+    min-width: 1024px;
+    min-height: 720px;
+    preferred-width: 1200px;
+    preferred-height: 800px;
+    background: Theme.background;
 
-    Text {
-        text: "ya.music-pro: Native Yandex Music Client";
-        color: #ffffff;
-        font-size: 18px;
-        horizontal-alignment: center;
-        vertical-alignment: center;
+    // State properties
+    in-out property <int> active-tab: 0; // 0 = Wave, 1 = Collection, 2 = Search
+    in-out property <string> user-name: "Гость";
+    in-out property <bool> is-authorized: false;
+
+    // Playback state
+    in-out property <string> track-title: "Выберите трек или включите Мою волну";
+    in-out property <string> track-artists: "Яндекс Музыка Pro";
+    in-out property <image> track-cover;
+    in-out property <bool> is-playing: false;
+    in-out property <bool> is-liked: false;
+    in-out property <bool> is-shuffle: false;
+    in-out property <int> repeat-mode: 0;
+    in-out property <string> quality-badge: "HQ";
+    in-out property <float> seek-progress: 0.0;
+    in-out property <string> elapsed-time: "0:00";
+    in-out property <string> total-duration: "0:00";
+    in-out property <float> volume: 0.8;
+    in-out property <bool> is-muted: false;
+
+    // Vibe properties
+    in-out property <string> vibe-character: "favorite";
+    in-out property <string> vibe-mood: "joyful";
+    in-out property <string> vibe-language: "any";
+
+    // Data lists
+    in-out property <[TrackData]> collection-tracks: [];
+    in-out property <int> collection-count: 0;
+    in-out property <[TrackData]> search-results: [];
+    in-out property <string> search-query: "";
+    in-out property <bool> is-searching: false;
+
+    // Core Callbacks
+    callback play-pause();
+    callback next-track();
+    callback prev-track();
+    callback shuffle-toggle();
+    callback repeat-toggle();
+    callback seek-to(float);
+    callback set-volume(float);
+    callback toggle-mute();
+    callback toggle-like(string);
+    callback dislike-track();
+    callback play-wave();
+    callback set-vibe(string, string, string);
+    callback tab-selected(int);
+    callback search-query-changed(string);
+    callback play-collection-track(int);
+    callback play-search-track(int);
+    callback request-auth();
+    callback toggle-lyrics();
+
+    VerticalLayout {
+        spacing: 0;
+
+        // Top Area: Sidebar + Content Views
+        HorizontalLayout {
+            vertical-stretch: 1;
+
+            Sidebar {
+                active-tab: root.active-tab;
+                user-name: root.user-name;
+                is-authorized: root.is-authorized;
+
+                tab-selected(tab) => {
+                    root.active-tab = tab;
+                    root.tab-selected(tab);
+                }
+                auth-clicked => {
+                    root.request-auth();
+                }
+            }
+
+            // View Content Switcher
+            Rectangle {
+                horizontal-stretch: 1;
+                background: Theme.background;
+
+                // 1. Моя волна View
+                if root.active-tab == 0 : WaveView {
+                    active-character: root.vibe-character;
+                    active-mood: root.vibe-mood;
+                    active-language: root.vibe-language;
+                    is-playing: root.is-playing;
+
+                    play-wave-clicked => { root.play-wave(); }
+                    character-selected(c) => {
+                        root.vibe-character = c;
+                        root.set-vibe(c, root.vibe-mood, root.vibe-language);
+                    }
+                    mood-selected(m) => {
+                        root.vibe-mood = m;
+                        root.set-vibe(root.vibe-character, m, root.vibe-language);
+                    }
+                    language-selected(l) => {
+                        root.vibe-language = l;
+                        root.set-vibe(root.vibe-character, root.vibe-mood, l);
+                    }
+                    recommendation-clicked(rec) => {
+                        root.play-wave();
+                    }
+                }
+
+                // 2. Коллекция View
+                if root.active-tab == 1 : CollectionView {
+                    tracks: root.collection-tracks;
+                    track-count: root.collection-count;
+
+                    play-all-clicked => { root.play-collection-track(0); }
+                    track-clicked(idx) => { root.play-collection-track(idx); }
+                    like-toggled(id) => { root.toggle-like(id); }
+                }
+
+                // 3. Поиск View
+                if root.active-tab == 2 : SearchView {
+                    results: root.search-results;
+                    search-query: root.search-query;
+                    is-searching: root.is-searching;
+
+                    query-changed(q) => {
+                        root.search-query = q;
+                        root.search-query-changed(q);
+                    }
+                    track-clicked(idx) => { root.play-search-track(idx); }
+                    like-toggled(id) => { root.toggle-like(id); }
+                }
+            }
+        }
+
+        // Fixed Player Bottom Bar
+        PlayerBottomBar {
+            track-title: root.track-title;
+            track-artists: root.track-artists;
+            track-cover: root.track-cover;
+            is-playing: root.is-playing;
+            is-liked: root.is-liked;
+            is-shuffle: root.is-shuffle;
+            repeat-mode: root.repeat-mode;
+            quality-badge: root.quality-badge;
+            seek-progress: root.seek-progress;
+            elapsed-time: root.elapsed-time;
+            total-duration: root.total-duration;
+            volume: root.volume;
+            is-muted: root.is-muted;
+
+            play-pause-clicked => { root.play-pause(); }
+            next-clicked => { root.next-track(); }
+            prev-clicked => { root.prev-track(); }
+            shuffle-clicked => { root.shuffle-toggle(); }
+            repeat-clicked => { root.repeat-toggle(); }
+            seek-requested(p) => { root.seek-to(p); }
+            volume-changed(v) => { root.set-volume(v); }
+            toggle-mute => { root.toggle-mute(); }
+            like-clicked => { root.toggle-like(""); }
+            dislike-clicked => { root.dislike-track(); }
+            lyrics-clicked => { root.toggle-lyrics(); }
+        }
     }
 }

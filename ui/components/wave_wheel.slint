@@ -1,0 +1,185 @@
+import { Theme } from "../theme.slint";
+
+export component WaveWheel inherits Rectangle {
+    in property <string> active-character: "favorite"; // favorite, energetic, calm, unfamiliar
+    in property <string> active-mood: "joyful";        // joyful, sad, energetic
+    in property <string> active-language: "any";       // any, russian, foreign
+    in property <bool> is-playing: false;
+
+    callback character-selected(string);
+    callback mood-selected(string);
+    callback language-selected(string);
+    callback play-wave-clicked();
+
+    width: 380px;
+    height: 380px;
+
+    // Glowing ambient background ring
+    Rectangle {
+        width: 320px;
+        height: 320px;
+        border-radius: 160px;
+        background: #FFCC0012;
+        border-width: 1px;
+        border-color: #FFCC0025;
+    }
+
+    Rectangle {
+        width: 250px;
+        height: 250px;
+        border-radius: 125px;
+        background: #FFCC001E;
+        border-width: 1px;
+        border-color: #FFCC0040;
+    }
+
+    // Center interactive action button
+    center-btn := Rectangle {
+        width: 130px;
+        height: 130px;
+        border-radius: 65px;
+        background: center-touch.has-hover ? Theme.accent-hover : Theme.accent;
+        drop-shadow-blur: 16px;
+        drop-shadow-color: #FFCC0055;
+        animate background { duration: 150ms; }
+
+        VerticalLayout {
+            alignment: center;
+            spacing: 6px;
+
+            Image {
+                width: 36px;
+                height: 36px;
+                source: root.is-playing ? @image-url("../icons/pause.svg") : @image-url("../icons/play.svg");
+                colorize: #121212;
+                horizontal-alignment: center;
+            }
+
+            Text {
+                text: root.is-playing ? "Играет" : "Включить";
+                font-size: 13px;
+                font-weight: 800;
+                font-family: Theme.font-family-display;
+                color: #121212;
+                horizontal-alignment: center;
+            }
+        }
+
+        center-touch := TouchArea {
+            clicked => { root.play-wave-clicked(); }
+        }
+    }
+
+    // Interactive Pill Selectors: Character (Top & Bottom)
+    // 1. "Любимое" (Top)
+    pill-favorite := Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: 12px;
+        height: 32px;
+        border-radius: 16px;
+        background: root.active-character == "favorite" ? Theme.accent : (fav-touch.has-hover ? #2C2C2C : #1E1E1E);
+        border-width: 1px;
+        border-color: root.active-character == "favorite" ? Theme.accent : #333333;
+
+        HorizontalLayout {
+            padding-left: 14px;
+            padding-right: 14px;
+
+            Text {
+                text: "★ Любимое";
+                font-size: 12px;
+                font-weight: 700;
+                color: root.active-character == "favorite" ? #121212 : #FFFFFF;
+                vertical-alignment: center;
+            }
+        }
+
+        fav-touch := TouchArea {
+            clicked => { root.character-selected("favorite"); }
+        }
+    }
+
+    // 2. "Незнакомое" (Bottom)
+    pill-unfamiliar := Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: parent.height - 44px;
+        height: 32px;
+        border-radius: 16px;
+        background: root.active-character == "unfamiliar" ? Theme.accent : (unf-touch.has-hover ? #2C2C2C : #1E1E1E);
+        border-width: 1px;
+        border-color: root.active-character == "unfamiliar" ? Theme.accent : #333333;
+
+        HorizontalLayout {
+            padding-left: 14px;
+            padding-right: 14px;
+
+            Text {
+                text: "✦ Незнакомое";
+                font-size: 12px;
+                font-weight: 700;
+                color: root.active-character == "unfamiliar" ? #121212 : #FFFFFF;
+                vertical-alignment: center;
+            }
+        }
+
+        unf-touch := TouchArea {
+            clicked => { root.character-selected("unfamiliar"); }
+        }
+    }
+
+    // 3. "Бодрое" (Left)
+    pill-energetic := Rectangle {
+        x: 10px;
+        y: (parent.height - self.height) / 2;
+        height: 32px;
+        border-radius: 16px;
+        background: root.active-character == "energetic" ? Theme.accent : (ene-touch.has-hover ? #2C2C2C : #1E1E1E);
+        border-width: 1px;
+        border-color: root.active-character == "energetic" ? Theme.accent : #333333;
+
+        HorizontalLayout {
+            padding-left: 14px;
+            padding-right: 14px;
+
+            Text {
+                text: "⚡ Бодрое";
+                font-size: 12px;
+                font-weight: 700;
+                color: root.active-character == "energetic" ? #121212 : #FFFFFF;
+                vertical-alignment: center;
+            }
+        }
+
+        ene-touch := TouchArea {
+            clicked => { root.character-selected("energetic"); }
+        }
+    }
+
+    // 4. "Спокойное" (Right)
+    pill-calm := Rectangle {
+        x: parent.width - self.width - 10px;
+        y: (parent.height - self.height) / 2;
+        height: 32px;
+        border-radius: 16px;
+        background: root.active-character == "calm" ? Theme.accent : (calm-touch.has-hover ? #2C2C2C : #1E1E1E);
+        border-width: 1px;
+        border-color: root.active-character == "calm" ? Theme.accent : #333333;
+
+        HorizontalLayout {
+            padding-left: 14px;
+            padding-right: 14px;
+
+            Text {
+                text: "☕ Спокойное";
+                font-size: 12px;
+                font-weight: 700;
+                color: root.active-character == "calm" ? #121212 : #FFFFFF;
+                vertical-alignment: center;
+            }
+        }
+
+        calm-touch := TouchArea {
+            clicked => { root.character-selected("calm"); }
+        }
+    }
+}
