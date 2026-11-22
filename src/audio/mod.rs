@@ -1,3 +1,4 @@
+pub mod bitperfect;
 pub mod controller;
 pub mod decoder;
 pub mod device;
@@ -6,6 +7,8 @@ pub mod stream;
 
 #[cfg(test)]
 mod tests;
+
+pub use bitperfect::{scale_sample_f64_tpdf, BitPerfectConfig, TpdfPrng};
 
 pub use controller::{AudioController, AudioEngine, AudioEngineError};
 pub use decoder::{DecoderError, SymphoniaDecoder};
