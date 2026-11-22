@@ -5,18 +5,24 @@ edition = "2021"
 authors = ["ya.music-pro contributors"]
 description = "Native audiophile Yandex Music desktop client in Rust with Slint"
 readme = "README.md"
+repository = "https://github.com/SpolzerMod/yamusic-rs"
 
 [dependencies]
-# UI Framework
-slint = { version = "1.9", default-features = false, features = ["backend-winit", "renderer-skia", "compat-1-2"] }
+# UI Framework from yamusic-rs
+skia-safe = { version = "0.153.3", default-features = false }
+slint = { version = "1.18", default-features = false, features = ["std", "compat-1-2", "backend-winit", "renderer-skia", "unstable-fontique-011", "unstable-winit-030"] }
 
 # Async runtime & networking
 tokio = { version = "1.43", features = ["full"] }
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json", "stream", "blocking", "gzip", "socks"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 quick-xml = { version = "0.37", features = ["serialize"] }
 md-5 = "0.10"
+hmac = "0.12"
+sha2 = "0.10"
+base64 = "0.22"
+miniz_oxide = "0.8"
 
 # Audio & DSP
 cpal = "0.15"
@@ -24,6 +30,7 @@ symphonia = { version = "0.5", features = ["all"] }
 rubato = "0.16"
 biquad = "0.4"
 ringbuf = "0.4"
+rodio = { version = "0.20", default-features = false, features = ["symphonia-mp3", "symphonia-aac", "symphonia-isomp4"] }
 
 # Local storage & paths
 rusqlite = { version = "0.33", features = ["bundled"] }
@@ -34,7 +41,7 @@ lofty = "0.21"
 
 # Graphics & Palette
 palette = { version = "0.7", features = ["named"] }
-image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
 
 # System integrations
 discord-rich-presence = "0.2"
@@ -52,7 +59,28 @@ windows = { version = "0.58", features = [
 thiserror = "2.0"
 log = "0.4"
 env_logger = "0.11"
-chrono = { version = "0.4", features = ["serde"] }
+chrono = { version = "0.4", features = ["serde", "clock"] }
+
+[target.'cfg(windows)'.dependencies.windows-sys]
+version = "0.59"
+features = [
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_Graphics_Gdi",
+  "Win32_Graphics_Dwm",
+  "Win32_UI_HiDpi",
+  "Win32_System_Threading",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Memory",
+  "Win32_UI_Shell",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_System_Registry",
+  "Win32_Security_Cryptography",
+  "Win32_UI_Controls_Dialogs",
+  "Win32_UI_Shell_Common",
+  "Win32_System_Com",
+]
 
 [build-dependencies]
-slint-build = "1.9"
+slint-build = "1.18"
