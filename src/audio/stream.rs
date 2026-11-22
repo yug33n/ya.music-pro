@@ -26,7 +26,6 @@ pub enum AudioStreamError {
 
 pub struct AudioOutputStream {
     _stream: Stream,
-    producer: HeapProd<f32>,
     sample_rate: u32,
     channels: u16,
     is_muted: Arc<AtomicBool>,
@@ -37,7 +36,7 @@ impl AudioOutputStream {
     pub fn new(
         device: &Device,
         buffer_capacity: usize,
-    ) -> Result<Self, AudioStreamError> {
+    ) -> Result<(Self, HeapProd<f32>), AudioStreamError> {
         let supported_config = device.default_output_config()?;
         let sample_rate = supported_config.sample_rate().0;
         let channels = supported_config.channels();
@@ -92,14 +91,15 @@ impl AudioOutputStream {
 
         stream.play()?;
 
-        Ok(Self {
+        let stream_wrapper = Self {
             _stream: stream,
-            producer,
             sample_rate,
             channels,
             is_muted,
             is_paused,
-        })
+        };
+
+        Ok((stream_wrapper, producer))
     }
 
     pub fn sample_rate(&self) -> u32 {
@@ -116,9 +116,5 @@ impl AudioOutputStream {
 
     pub fn set_paused(&self, paused: bool) {
         self.is_paused.store(paused, Ordering::Relaxed);
-    }
-
-    pub fn producer_mut(&mut self) -> &mut HeapProd<f32> {
-        &mut self.producer
     }
 }

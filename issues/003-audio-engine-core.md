@@ -3,7 +3,7 @@
 ## 1. Метаданные задачи
 - **Номер:** #03
 - **Целевая ветка разработки:** `Branch: feat/audio-engine-core`
-- **Статус:** В работе
+- **Статус:** Выполнено (ожидает проверки и мерджа в main)
 
 ---
 
@@ -38,9 +38,9 @@
 - [x] Сформировать файл issues/003-audio-engine-core.md с чек-листом.
 - [x] Реализовать модуль аудио-устройств и CPAL выходной поток с lock-free ring buffer.
 - [x] Реализовать декодер Symphonia с поддержкой MP3/FLAC и синхронным ресемплером Rubato.
-- [ ] Реализовать высокоуровневый AudioController (play, pause, resume, stop, seek, volume, position).
-- [ ] Написать unit-тесты для компонентов аудио-движка.
-- [ ] Провести валидацию проекта: `cargo check`, `cargo clippy`, `cargo test`.
+- [x] Реализовать высокоуровневый AudioController (play, pause, resume, stop, seek, volume, position).
+- [x] Написать unit-тесты для компонентов аудио-движка.
+- [x] Провести валидацию проекта: `cargo check`, `cargo clippy`, `cargo test`.
 
 ---
 
