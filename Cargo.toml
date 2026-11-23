@@ -84,3 +84,10 @@ features = [
 
 [build-dependencies]
 slint-build = "1.18"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = true

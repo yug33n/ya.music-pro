@@ -26,3 +26,5 @@ issues/
 *~
 Thumbs.db
 [Dd]esktop.ini
+
+dist/
