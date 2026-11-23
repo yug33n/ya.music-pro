@@ -65,6 +65,9 @@ pub fn cyrillic_to_latin(c: char) -> char {
 }
 
 pub fn parse_hotkey_string(s: &str) -> Option<HotKey> {
+    if s.trim().is_empty() {
+        return None;
+    }
     let normalized: String = s.chars().map(cyrillic_to_latin).collect();
     normalized.parse::<HotKey>().ok()
 }

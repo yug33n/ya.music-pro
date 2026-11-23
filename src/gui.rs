@@ -2067,6 +2067,9 @@ pub fn run(start_hidden: bool) -> Result<(), slint::PlatformError> {
     let hotkey_tick = Timer::default();
     hotkey_tick.start(TimerMode::Repeated, Duration::from_millis(50), || {
         with_ctx(|c| {
+            if !c.ui().global::<App>().get_recording_hotkey().is_empty() {
+                return;
+            }
             let action = c.st.borrow().hotkeys.poll_event();
             if let Some(act) = action {
                 c.handle_global_hotkey(act);
@@ -4248,13 +4251,72 @@ fn register_extra(app: &App) {
     // Переназначение и обработка горячих клавиш
     app.on_start_rebind(|action| {
         with_ctx(|c| {
+            let mut st = c.st.borrow_mut();
+            st.hotkeys.unregister_all();
             c.ui().global::<App>().set_recording_hotkey(action);
         });
     });
 
     app.on_cancel_rebind(|| {
         with_ctx(|c| {
+            let mut st = c.st.borrow_mut();
+            let (hk_pp, hk_next, hk_prev, hk_fwd, hk_bwd, hk_like) = (
+                st.cfg.hk_play_pause.clone(),
+                st.cfg.hk_next.clone(),
+                st.cfg.hk_prev.clone(),
+                st.cfg.hk_forward.clone(),
+                st.cfg.hk_backward.clone(),
+                st.cfg.hk_like.clone(),
+            );
+            st.hotkeys.update_bindings(&hk_pp, &hk_next, &hk_prev, &hk_fwd, &hk_bwd, &hk_like);
             c.ui().global::<App>().set_recording_hotkey(SharedString::new());
+        });
+    });
+
+    app.on_clear_hotkey(|action| {
+        with_ctx(|c| {
+            let mut st = c.st.borrow_mut();
+            let ui = c.ui();
+            let app = ui.global::<App>();
+            match action.as_str() {
+                "play-pause" => {
+                    st.cfg.hk_play_pause.clear();
+                    app.set_hk_play_pause(SharedString::new());
+                }
+                "next" => {
+                    st.cfg.hk_next.clear();
+                    app.set_hk_next(SharedString::new());
+                }
+                "prev" => {
+                    st.cfg.hk_prev.clear();
+                    app.set_hk_prev(SharedString::new());
+                }
+                "forward" => {
+                    st.cfg.hk_forward.clear();
+                    app.set_hk_forward(SharedString::new());
+                }
+                "backward" => {
+                    st.cfg.hk_backward.clear();
+                    app.set_hk_backward(SharedString::new());
+                }
+                "like" => {
+                    st.cfg.hk_like.clear();
+                    app.set_hk_like(SharedString::new());
+                }
+                _ => {}
+            }
+            st.cfg.save();
+            let (hk_pp, hk_next, hk_prev, hk_fwd, hk_bwd, hk_like) = (
+                st.cfg.hk_play_pause.clone(),
+                st.cfg.hk_next.clone(),
+                st.cfg.hk_prev.clone(),
+                st.cfg.hk_forward.clone(),
+                st.cfg.hk_backward.clone(),
+                st.cfg.hk_like.clone(),
+            );
+            st.hotkeys.update_bindings(&hk_pp, &hk_next, &hk_prev, &hk_fwd, &hk_bwd, &hk_like);
+            drop(st);
+            c.toast("Горячая клавиша удалена");
         });
     });
 
@@ -4344,6 +4406,13 @@ fn register_extra(app: &App) {
     });
 
     app.on_check_shortcut(|text, ctrl, alt, shift| {
+        let mut is_rec = false;
+        with_ctx(|c| {
+            is_rec = !c.ui().global::<App>().get_recording_hotkey().is_empty();
+        });
+        if is_rec {
+            return false;
+        }
         let Some(combo) = format_key_combo(text.as_str(), ctrl, alt, shift) else {
             return false;
         };
@@ -4423,6 +4492,9 @@ fn format_key_combo(text: &str, ctrl: bool, alt: bool, shift: bool) -> Option<St
 }
 
 fn is_matching_key(expected: &str, combo: &str) -> bool {
+    if expected.trim().is_empty() {
+        return false;
+    }
     let norm = |s: &str| -> String {
         s.chars()
             .filter(|c| !c.is_whitespace() && *c != '+')
