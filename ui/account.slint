@@ -368,13 +368,13 @@ component HotkeyOption inherits Rectangle {
         border-radius: 12px;
         background: clear-ta.has-hover ? Theme.controls-color-secondary-default-hovered : transparent;
         animate background { duration: App.motion ? 150ms : 0ms; }
-        Text {
-            text: "✕";
-            font-size: 12px;
-            font-weight: 700;
-            color: clear-ta.has-hover ? #ED4027 : Theme.controls-color-primary-text-enabled;
-            horizontal-alignment: center;
-            vertical-alignment: center;
+        Icon {
+            x: (parent.width - 16px) / 2;
+            y: (parent.height - 16px) / 2;
+            width: 16px;
+            height: 16px;
+            source: Icons.close-small;
+            colorize: clear-ta.has-hover ? #ED4027 : Theme.controls-color-primary-text-enabled;
         }
         clear-ta := TouchArea {
             mouse-cursor: MouseCursor.pointer;
