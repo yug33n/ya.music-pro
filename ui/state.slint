@@ -509,6 +509,20 @@ export global App {
     callback cycle-repeat();
     callback toggle-shuffle();
     callback set-volume(float);
+
+    // Горячие клавиши
+    in-out property <string> hk-play-pause: "Space";
+    in-out property <string> hk-next: "Ctrl + Right";
+    in-out property <string> hk-prev: "Ctrl + Left";
+    in-out property <string> hk-forward: "Ctrl + Shift + Right";
+    in-out property <string> hk-backward: "Ctrl + Shift + Left";
+    in-out property <string> hk-like: "Ctrl + L";
+    in-out property <string> recording-hotkey: "";
+    callback start-rebind(string);
+    callback capture-hotkey(string, bool, bool, bool);
+    callback cancel-rebind();
+    callback reset-hotkeys();
+    callback check-shortcut(string, bool, bool, bool) -> bool;
     // Громкость до выключения звука: её возвращает повторный клик.
     in-out property <float> unmuted-volume: 0.6;
     public function toggle-mute() {

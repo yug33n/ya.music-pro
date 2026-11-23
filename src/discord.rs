@@ -12,7 +12,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 /// Приложение Discord, под которым все пользователи показывают статус «Слушает».
 /// Его имя видно в профиле («Слушает …»), картинка `logo` — значок в углу обложки.
-pub const APP_ID: &str = "1570815647133474856";
+pub const APP_ID: &str = "1574364463497355305";
 /// Ссылка второй кнопки статуса.
 const PROJECT_URL: &str = env!("CARGO_PKG_REPOSITORY");
 
@@ -151,7 +151,7 @@ fn activity(t: &Track, start: i64, end: Option<i64>, with_display_type: bool) ->
         "timestamps": { "start": start },
         "buttons": [
             { "label": "Слушать в Яндекс Музыке", "url": url },
-            { "label": env!("APP_NAME"), "url": PROJECT_URL },
+            { "label": "Скачать ya.music-pro", "url": PROJECT_URL },
         ],
     });
     if let Some(end) = end {

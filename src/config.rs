@@ -59,7 +59,26 @@ pub struct Config {
     pub window_maximized: bool,
     /// Место мини-плеера при выходе.
     pub mini_pos: Option<[i32; 2]>,
+    #[serde(default = "default_hk_play_pause")]
+    pub hk_play_pause: String,
+    #[serde(default = "default_hk_next")]
+    pub hk_next: String,
+    #[serde(default = "default_hk_prev")]
+    pub hk_prev: String,
+    #[serde(default = "default_hk_forward")]
+    pub hk_forward: String,
+    #[serde(default = "default_hk_backward")]
+    pub hk_backward: String,
+    #[serde(default = "default_hk_like")]
+    pub hk_like: String,
 }
+
+pub fn default_hk_play_pause() -> String { "Space".into() }
+pub fn default_hk_next() -> String { "Ctrl + Right".into() }
+pub fn default_hk_prev() -> String { "Ctrl + Left".into() }
+pub fn default_hk_forward() -> String { "Ctrl + Shift + Right".into() }
+pub fn default_hk_backward() -> String { "Ctrl + Shift + Left".into() }
+pub fn default_hk_like() -> String { "Ctrl + L".into() }
 
 /// Блок запоминается по id из скелета: он постоянный («recommended_playlists»), а заголовок
 /// меняется («Летняя» → «Осенняя»). Заголовок — только чтобы показать список в настройках.
@@ -101,6 +120,12 @@ impl Default for Config {
             window_size: None,
             window_maximized: false,
             mini_pos: None,
+            hk_play_pause: default_hk_play_pause(),
+            hk_next: default_hk_next(),
+            hk_prev: default_hk_prev(),
+            hk_forward: default_hk_forward(),
+            hk_backward: default_hk_backward(),
+            hk_like: default_hk_like(),
         }
     }
 }

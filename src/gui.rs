@@ -1587,6 +1587,12 @@ pub fn run(start_hidden: bool) -> Result<(), slint::PlatformError> {
     app.set_download_dir(music_dir(&cfg).display().to_string().into());
     app.set_download_flac(cfg.download_flac);
     app.set_log_volume(cfg.log_volume);
+    app.set_hk_play_pause(cfg.hk_play_pause.clone().into());
+    app.set_hk_next(cfg.hk_next.clone().into());
+    app.set_hk_prev(cfg.hk_prev.clone().into());
+    app.set_hk_forward(cfg.hk_forward.clone().into());
+    app.set_hk_backward(cfg.hk_backward.clone().into());
+    app.set_hk_like(cfg.hk_like.clone().into());
     app.set_hidden_blocks(landing_ui::hidden_titles(&cfg).into());
     let places = Rc::new(Places::default());
     places.mini.set(cfg.mini_pos.map(|[x, y]| slint::PhysicalPosition::new(x, y)));
@@ -4184,4 +4190,167 @@ fn register_extra(app: &App) {
         crate::eq::PRESETS.iter().map(|p| SharedString::from(p.0)).collect::<Vec<_>>(),
     ))));
     with_ctx(|c| c.apply_eq());
+
+    // Переназначение и обработка горячих клавиш
+    app.on_start_rebind(|action| {
+        with_ctx(|c| {
+            c.ui().global::<App>().set_recording_hotkey(action);
+        });
+    });
+
+    app.on_cancel_rebind(|| {
+        with_ctx(|c| {
+            c.ui().global::<App>().set_recording_hotkey(SharedString::new());
+        });
+    });
+
+    app.on_reset_hotkeys(|| {
+        with_ctx(|c| {
+            let mut st = c.st.borrow_mut();
+            st.cfg.hk_play_pause = crate::config::default_hk_play_pause();
+            st.cfg.hk_next = crate::config::default_hk_next();
+            st.cfg.hk_prev = crate::config::default_hk_prev();
+            st.cfg.hk_forward = crate::config::default_hk_forward();
+            st.cfg.hk_backward = crate::config::default_hk_backward();
+            st.cfg.hk_like = crate::config::default_hk_like();
+            st.cfg.save();
+            let ui = c.ui();
+            let app = ui.global::<App>();
+            app.set_hk_play_pause(st.cfg.hk_play_pause.clone().into());
+            app.set_hk_next(st.cfg.hk_next.clone().into());
+            app.set_hk_prev(st.cfg.hk_prev.clone().into());
+            app.set_hk_forward(st.cfg.hk_forward.clone().into());
+            app.set_hk_backward(st.cfg.hk_backward.clone().into());
+            app.set_hk_like(st.cfg.hk_like.clone().into());
+            app.set_recording_hotkey(SharedString::new());
+            drop(st);
+            c.toast("Горячие клавиши сброшены по умолчанию");
+        });
+    });
+
+    app.on_capture_hotkey(|text, ctrl, alt, shift| {
+        with_ctx(|c| {
+            let ui = c.ui();
+            let app = ui.global::<App>();
+            let action = app.get_recording_hotkey().to_string();
+            if action.is_empty() { return; }
+            if let Some(combo) = format_key_combo(text.as_str(), ctrl, alt, shift) {
+                let mut st = c.st.borrow_mut();
+                match action.as_str() {
+                    "play-pause" => {
+                        st.cfg.hk_play_pause = combo.clone();
+                        app.set_hk_play_pause(combo.into());
+                    }
+                    "next" => {
+                        st.cfg.hk_next = combo.clone();
+                        app.set_hk_next(combo.into());
+                    }
+                    "prev" => {
+                        st.cfg.hk_prev = combo.clone();
+                        app.set_hk_prev(combo.into());
+                    }
+                    "forward" => {
+                        st.cfg.hk_forward = combo.clone();
+                        app.set_hk_forward(combo.into());
+                    }
+                    "backward" => {
+                        st.cfg.hk_backward = combo.clone();
+                        app.set_hk_backward(combo.into());
+                    }
+                    "like" => {
+                        st.cfg.hk_like = combo.clone();
+                        app.set_hk_like(combo.into());
+                    }
+                    _ => {}
+                }
+                st.cfg.save();
+                app.set_recording_hotkey(SharedString::new());
+                drop(st);
+                c.toast("Горячая клавиша сохранена");
+            }
+        });
+    });
+
+    app.on_check_shortcut(|text, ctrl, alt, shift| {
+        let Some(combo) = format_key_combo(text.as_str(), ctrl, alt, shift) else {
+            return false;
+        };
+        let mut matched = false;
+        with_ctx(|c| {
+            let (hk_play_pause, hk_next, hk_prev, hk_forward, hk_backward, hk_like) = {
+                let st = c.st.borrow();
+                (
+                    st.cfg.hk_play_pause.clone(),
+                    st.cfg.hk_next.clone(),
+                    st.cfg.hk_prev.clone(),
+                    st.cfg.hk_forward.clone(),
+                    st.cfg.hk_backward.clone(),
+                    st.cfg.hk_like.clone(),
+                )
+            };
+            if is_matching_key(&hk_play_pause, &combo) {
+                let started = c.st.borrow().started;
+                if started {
+                    c.player.send(Cmd::PlayPause);
+                } else {
+                    c.start();
+                }
+                matched = true;
+            } else if is_matching_key(&hk_next, &combo) {
+                c.player.send(Cmd::Next);
+                matched = true;
+            } else if is_matching_key(&hk_prev, &combo) {
+                c.player.send(Cmd::Prev);
+                matched = true;
+            } else if is_matching_key(&hk_forward, &combo) {
+                let pos = c.player.state().position;
+                c.player.send(Cmd::Seek(pos + 10.0));
+                matched = true;
+            } else if is_matching_key(&hk_backward, &combo) {
+                let pos = c.player.state().position;
+                c.player.send(Cmd::Seek((pos - 10.0).max(0.0)));
+                matched = true;
+            } else if is_matching_key(&hk_like, &combo) {
+                if let Some(t) = c.player.state().track {
+                    c.like(t);
+                }
+                matched = true;
+            }
+        });
+        matched
+    });
+}
+
+fn format_key_combo(text: &str, ctrl: bool, alt: bool, shift: bool) -> Option<String> {
+    let key_name = match text {
+        " " => "Space",
+        "\u{F700}" => "Up",
+        "\u{F701}" => "Down",
+        "\u{F702}" => "Right",
+        "\u{F703}" => "Left",
+        "\n" | "\r" => "Enter",
+        "\t" => "Tab",
+        "\u{0008}" => "Backspace",
+        "\u{007F}" => "Delete",
+        _ if text.is_empty() || text.chars().all(|c| c.is_control()) => return None,
+        s => s,
+    };
+    let mut parts = Vec::new();
+    if ctrl { parts.push("Ctrl"); }
+    if alt { parts.push("Alt"); }
+    if shift { parts.push("Shift"); }
+    let display_key = if key_name.chars().count() == 1 {
+        key_name.to_uppercase()
+    } else {
+        key_name.to_string()
+    };
+    parts.push(&display_key);
+    Some(parts.join(" + "))
+}
+
+fn is_matching_key(expected: &str, combo: &str) -> bool {
+    let norm = |s: &str| -> String {
+        s.replace(" ", "").to_lowercase()
+    };
+    norm(expected) == norm(combo)
 }

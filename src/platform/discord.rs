@@ -3,7 +3,7 @@ use discord_rich_presence::{activity, DiscordIpc, DiscordIpcClient};
 use std::time::{SystemTime, UNIX_EPOCH};
 use thiserror::Error;
 
-pub const DEFAULT_DISCORD_APP_ID: &str = "1093126982977450005"; // Yandex Music Desktop Client RPC ID
+pub const DEFAULT_DISCORD_APP_ID: &str = "1574364463497355305"; // ya.music-pro Discord RPC ID
 
 #[derive(Error, Debug)]
 pub enum DiscordError {

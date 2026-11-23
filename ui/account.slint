@@ -307,6 +307,52 @@ component ModeOption inherits Rectangle {
     }
 }
 
+// Строка горячей клавиши с кликабельным бейджем
+component HotkeyOption inherits Rectangle {
+    in property <string> title;
+    in property <string> key-text;
+    in property <bool> recording;
+    callback clicked;
+    height: 44px;
+    border-radius: Theme.radius-size-m;
+    background: ta.has-hover && !recording ? Theme.controls-color-secondary-default-enabled : transparent;
+    animate background { duration: App.motion ? 150ms : 0ms; }
+    Text {
+        x: 0;
+        y: 0;
+        width: parent.width - badge.width - 16px;
+        height: parent.height;
+        text: title;
+        vertical-alignment: center;
+        font-size: 15px;
+        font-weight: 600;
+        color: Theme.controls-color-primary-text-enabled-variant;
+    }
+    badge := Rectangle {
+        x: parent.width - self.width;
+        y: (parent.height - self.height) / 2;
+        width: max(80px, badge-txt.preferred-width + 24px);
+        height: 30px;
+        border-radius: 15px;
+        background: recording ? #FEB31D : (ta.has-hover ? Theme.controls-color-secondary-default-hovered : Theme.controls-color-secondary-default-disabled);
+        border-width: 1px;
+        border-color: recording ? #ED4027 : Theme.outline-color-primary-disabled;
+        animate background { duration: App.motion ? 150ms : 0ms; }
+        badge-txt := Text {
+            x: 12px;
+            text: recording ? T.t("Нажмите клавиши...") : key-text;
+            font-size: 13px;
+            font-weight: 600;
+            color: recording ? #000000 : Theme.controls-color-primary-text-enabled-variant;
+            vertical-alignment: center;
+        }
+    }
+    ta := TouchArea {
+        mouse-cursor: MouseCursor.pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
 export component SettingsPage inherits Rectangle {
     Flickable {
         content-height: list.y + list.preferred-height + 40px;
@@ -368,6 +414,64 @@ export component SettingsPage inherits Rectangle {
                 toggle: true;
                 on: App.log-volume;
                 clicked => { App.setting("log-volume"); }
+            }
+            VerticalLayout {
+                spacing: 12px;
+                Text {
+                    height: 24px;
+                    text: T.t("Горячие клавиши");
+                    vertical-alignment: center;
+                    font-size: 16px;
+                    font-weight: 700;
+                    color: Theme.controls-color-primary-text-enabled-variant;
+                }
+                Text {
+                    text: T.t("Нажмите на кнопку с комбинацией клавиш, чтобы переназначить:");
+                    font-size: 12px;
+                    font-weight: 500;
+                    color: Theme.controls-color-primary-text-enabled;
+                }
+                HotkeyOption {
+                    title: T.t("Пауза / Воспроизведение");
+                    key-text: App.hk-play-pause;
+                    recording: App.recording-hotkey == "play-pause";
+                    clicked => { App.start-rebind("play-pause"); }
+                }
+                HotkeyOption {
+                    title: T.t("Следующий трек");
+                    key-text: App.hk-next;
+                    recording: App.recording-hotkey == "next";
+                    clicked => { App.start-rebind("next"); }
+                }
+                HotkeyOption {
+                    title: T.t("Предыдущий трек");
+                    key-text: App.hk-prev;
+                    recording: App.recording-hotkey == "prev";
+                    clicked => { App.start-rebind("prev"); }
+                }
+                HotkeyOption {
+                    title: T.t("Перемотка вперёд (+10 сек)");
+                    key-text: App.hk-forward;
+                    recording: App.recording-hotkey == "forward";
+                    clicked => { App.start-rebind("forward"); }
+                }
+                HotkeyOption {
+                    title: T.t("Перемотка назад (-10 сек)");
+                    key-text: App.hk-backward;
+                    recording: App.recording-hotkey == "backward";
+                    clicked => { App.start-rebind("backward"); }
+                }
+                HotkeyOption {
+                    title: T.t("Мне нравится (Лайк)");
+                    key-text: App.hk-like;
+                    recording: App.recording-hotkey == "like";
+                    clicked => { App.start-rebind("like"); }
+                }
+                SettingItem {
+                    title: T.t("Сбросить горячие клавиши");
+                    desc: T.t("Вернуть стандартные сочетания клавиш");
+                    clicked => { App.reset-hotkeys(); }
+                }
             }
             SettingItem {
                 title: T.t("Папка для скачивания");
