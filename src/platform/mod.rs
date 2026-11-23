@@ -9,5 +9,5 @@ pub use ducking::{
     start_voice_activity_monitor, SessionMeterInfo, SessionMonitorError, WindowsSessionMonitor,
 };
 pub use export::{export_track_with_metadata, ExportConfig, ExportError};
-pub use hotkeys::{GlobalHotkeyAction, GlobalHotkeysEngine};
+pub use hotkeys::{cyrillic_to_latin, parse_hotkey_string, GlobalHotkeyAction, GlobalHotkeysEngine};
 pub use tray::{HeadlessTrayMode, TrayEventAction};

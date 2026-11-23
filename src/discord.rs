@@ -140,17 +140,12 @@ fn fit(s: &str, fallback: &str) -> String {
 }
 
 fn activity(t: &Track, start: i64, end: Option<i64>, with_display_type: bool) -> Value {
-    let url = match &t.album_id {
-        Some(a) => format!("https://music.yandex.ru/album/{a}/track/{}", t.id),
-        None => format!("https://music.yandex.ru/track/{}", t.id),
-    };
     let mut a = json!({
         "type": 2, // «Слушает»
         "details": fit(&t.title, "Без названия"),
         "state": fit(&t.artists, "Моя волна"),
         "timestamps": { "start": start },
         "buttons": [
-            { "label": "Слушать в Яндекс Музыке", "url": url },
             { "label": "Скачать ya.music-pro", "url": PROJECT_URL },
         ],
     });
@@ -161,10 +156,8 @@ fn activity(t: &Track, start: i64, end: Option<i64>, with_display_type: bool) ->
         // В списке участников: «Слушает <название трека>», а не имя приложения.
         a["status_display_type"] = json!(2);
     }
-    let album = if t.album_title.is_empty() { env!("APP_NAME").to_string() } else { fit(&t.album_title, env!("APP_NAME")) };
     a["assets"] = json!({
         "large_image": t.cover_url(400).unwrap_or_else(|| "logo".into()),
-        "large_text": album,
         "small_image": "logo",
         "small_text": env!("APP_NAME"),
     });

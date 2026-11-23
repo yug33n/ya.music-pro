@@ -80,6 +80,7 @@ struct State {
     /// Анимация пятна: таймер есть, только пока волна играет на экране.
     trailer: Option<Trailer>,
     downloading: bool,
+    hotkeys: crate::platform::GlobalHotkeysEngine,
 }
 
 /// Трейлер: треки звучат по 12,5 с с середины, потом следующий.
@@ -1028,6 +1029,40 @@ impl Ctx {
         self.sync_player();
     }
 
+    fn handle_global_hotkey(self: &Rc<Self>, act: crate::platform::GlobalHotkeyAction) {
+        use crate::platform::GlobalHotkeyAction;
+        match act {
+            GlobalHotkeyAction::PlayPause => {
+                let started = self.st.borrow().started;
+                if started {
+                    self.player.send(Cmd::PlayPause);
+                } else {
+                    self.start();
+                }
+            }
+            GlobalHotkeyAction::NextTrack => {
+                self.player.send(Cmd::Next);
+            }
+            GlobalHotkeyAction::PreviousTrack => {
+                self.player.send(Cmd::Prev);
+            }
+            GlobalHotkeyAction::SeekForward10s => {
+                let pos = self.player.state().position;
+                self.player.send(Cmd::Seek(pos + 10.0));
+            }
+            GlobalHotkeyAction::SeekBackward10s => {
+                let pos = self.player.state().position;
+                self.player.send(Cmd::Seek((pos - 10.0).max(0.0)));
+            }
+            GlobalHotkeyAction::ToggleLike => {
+                if let Some(t) = self.player.state().track {
+                    self.like(t);
+                }
+            }
+            GlobalHotkeyAction::Dislike | GlobalHotkeyAction::NextEqPreset => {}
+        }
+    }
+
     fn set_wheel(self: &Rc<Self>, items: Vec<crate::api::WheelItem>) {
         let model = Rc::new(VecModel::from(
             items
@@ -1608,6 +1643,15 @@ pub fn run(start_hidden: bool) -> Result<(), slint::PlatformError> {
         ui.window().set_maximized(true);
         app.set_maximized(true);
     }
+    let mut hotkeys = crate::platform::GlobalHotkeysEngine::default();
+    hotkeys.update_bindings(
+        &cfg.hk_play_pause,
+        &cfg.hk_next,
+        &cfg.hk_prev,
+        &cfg.hk_forward,
+        &cfg.hk_backward,
+        &cfg.hk_like,
+    );
     let ctx = Rc::new(Ctx {
         ui: ui.as_weak(),
         lite: Cell::new(lite),
@@ -1668,6 +1712,7 @@ pub fn run(start_hidden: bool) -> Result<(), slint::PlatformError> {
             vibe_key: None,
             trailer: None,
             downloading: false,
+            hotkeys,
         }),
     });
     CTX.with(|c| *c.borrow_mut() = Some(ctx.clone()));
@@ -2018,6 +2063,15 @@ pub fn run(start_hidden: bool) -> Result<(), slint::PlatformError> {
                 c.update_lyric_current(c.player.state().position);
             }
         })
+    });
+    let hotkey_tick = Timer::default();
+    hotkey_tick.start(TimerMode::Repeated, Duration::from_millis(50), || {
+        with_ctx(|c| {
+            let action = c.st.borrow().hotkeys.poll_event();
+            if let Some(act) = action {
+                c.handle_global_hotkey(act);
+            }
+        });
     });
 
     // «Как в системе» следит за темой Windows и на ходу. На Linux её отдаёт портал через
@@ -4214,6 +4268,15 @@ fn register_extra(app: &App) {
             st.cfg.hk_backward = crate::config::default_hk_backward();
             st.cfg.hk_like = crate::config::default_hk_like();
             st.cfg.save();
+            let (hk_pp, hk_next, hk_prev, hk_fwd, hk_bwd, hk_like) = (
+                st.cfg.hk_play_pause.clone(),
+                st.cfg.hk_next.clone(),
+                st.cfg.hk_prev.clone(),
+                st.cfg.hk_forward.clone(),
+                st.cfg.hk_backward.clone(),
+                st.cfg.hk_like.clone(),
+            );
+            st.hotkeys.update_bindings(&hk_pp, &hk_next, &hk_prev, &hk_fwd, &hk_bwd, &hk_like);
             let ui = c.ui();
             let app = ui.global::<App>();
             app.set_hk_play_pause(st.cfg.hk_play_pause.clone().into());
@@ -4264,6 +4327,15 @@ fn register_extra(app: &App) {
                     _ => {}
                 }
                 st.cfg.save();
+                let (hk_pp, hk_next, hk_prev, hk_fwd, hk_bwd, hk_like) = (
+                    st.cfg.hk_play_pause.clone(),
+                    st.cfg.hk_next.clone(),
+                    st.cfg.hk_prev.clone(),
+                    st.cfg.hk_forward.clone(),
+                    st.cfg.hk_backward.clone(),
+                    st.cfg.hk_like.clone(),
+                );
+                st.hotkeys.update_bindings(&hk_pp, &hk_next, &hk_prev, &hk_fwd, &hk_bwd, &hk_like);
                 app.set_recording_hotkey(SharedString::new());
                 drop(st);
                 c.toast("Горячая клавиша сохранена");
@@ -4326,8 +4398,8 @@ fn format_key_combo(text: &str, ctrl: bool, alt: bool, shift: bool) -> Option<St
         " " => "Space",
         "\u{F700}" => "Up",
         "\u{F701}" => "Down",
-        "\u{F702}" => "Right",
-        "\u{F703}" => "Left",
+        "\u{F702}" => "Left",
+        "\u{F703}" => "Right",
         "\n" | "\r" => "Enter",
         "\t" => "Tab",
         "\u{0008}" => "Backspace",
@@ -4340,7 +4412,9 @@ fn format_key_combo(text: &str, ctrl: bool, alt: bool, shift: bool) -> Option<St
     if alt { parts.push("Alt"); }
     if shift { parts.push("Shift"); }
     let display_key = if key_name.chars().count() == 1 {
-        key_name.to_uppercase()
+        let ch = key_name.chars().next().unwrap();
+        let latin = crate::platform::cyrillic_to_latin(ch);
+        latin.to_uppercase().to_string()
     } else {
         key_name.to_string()
     };
@@ -4350,7 +4424,10 @@ fn format_key_combo(text: &str, ctrl: bool, alt: bool, shift: bool) -> Option<St
 
 fn is_matching_key(expected: &str, combo: &str) -> bool {
     let norm = |s: &str| -> String {
-        s.replace(" ", "").to_lowercase()
+        s.chars()
+            .filter(|c| !c.is_whitespace() && *c != '+')
+            .map(|c| crate::platform::cyrillic_to_latin(c).to_ascii_lowercase())
+            .collect()
     };
     norm(expected) == norm(combo)
 }

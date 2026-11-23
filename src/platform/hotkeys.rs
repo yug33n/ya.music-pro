@@ -25,6 +25,50 @@ pub enum GlobalHotkeyAction {
     NextEqPreset,
 }
 
+pub fn cyrillic_to_latin(c: char) -> char {
+    match c {
+        'й' | 'Й' => 'q',
+        'ц' | 'Ц' => 'w',
+        'у' | 'У' => 'e',
+        'к' | 'К' => 'r',
+        'е' | 'Е' => 't',
+        'н' | 'Н' => 'y',
+        'г' | 'Г' => 'u',
+        'ш' | 'Ш' => 'i',
+        'щ' | 'Щ' => 'o',
+        'з' | 'З' => 'p',
+        'х' | 'Х' => '[',
+        'ъ' | 'Ъ' => ']',
+        'ф' | 'Ф' => 'a',
+        'ы' | 'Ы' => 's',
+        'в' | 'В' => 'd',
+        'а' | 'А' => 'f',
+        'п' | 'П' => 'g',
+        'р' | 'Р' => 'h',
+        'о' | 'О' => 'j',
+        'л' | 'Л' => 'k',
+        'д' | 'Д' => 'l',
+        'ж' | 'Ж' => ';',
+        'э' | 'Э' => '\'',
+        'я' | 'Я' => 'z',
+        'ч' | 'Ч' => 'x',
+        'с' | 'С' => 'c',
+        'м' | 'М' => 'v',
+        'и' | 'И' => 'b',
+        'т' | 'Т' => 'n',
+        'ь' | 'Ь' => 'm',
+        'б' | 'Б' => ',',
+        'ю' | 'Ю' => '.',
+        'ё' | 'Ё' => '`',
+        other => other,
+    }
+}
+
+pub fn parse_hotkey_string(s: &str) -> Option<HotKey> {
+    let normalized: String = s.chars().map(cyrillic_to_latin).collect();
+    normalized.parse::<HotKey>().ok()
+}
+
 pub struct GlobalHotkeysEngine {
     manager: Option<GlobalHotKeyManager>,
     hotkey_to_action: HashMap<u32, GlobalHotkeyAction>,
@@ -61,22 +105,51 @@ impl GlobalHotkeysEngine {
         self.is_enabled
     }
 
-    pub fn register_default_bindings(&mut self) {
-        let ctrl_alt = Some(Modifiers::CONTROL | Modifiers::ALT);
+    pub fn unregister_all(&mut self) {
+        if let Some(ref manager) = self.manager {
+            for hotkey in self.action_to_hotkey.values() {
+                let _ = manager.unregister(*hotkey);
+            }
+        }
+        self.hotkey_to_action.clear();
+        self.action_to_hotkey.clear();
+    }
 
-        let defaults = [
-            (GlobalHotkeyAction::PlayPause, HotKey::new(ctrl_alt, Code::Space)),
-            (GlobalHotkeyAction::NextTrack, HotKey::new(ctrl_alt, Code::ArrowRight)),
-            (GlobalHotkeyAction::PreviousTrack, HotKey::new(ctrl_alt, Code::ArrowLeft)),
-            (GlobalHotkeyAction::SeekForward10s, HotKey::new(ctrl_alt, Code::Period)),
-            (GlobalHotkeyAction::SeekBackward10s, HotKey::new(ctrl_alt, Code::Comma)),
-            (GlobalHotkeyAction::ToggleLike, HotKey::new(ctrl_alt, Code::KeyL)),
-            (GlobalHotkeyAction::Dislike, HotKey::new(ctrl_alt, Code::KeyD)),
-            (GlobalHotkeyAction::NextEqPreset, HotKey::new(ctrl_alt, Code::KeyE)),
+    pub fn register_default_bindings(&mut self) {
+        self.update_bindings(
+            "Ctrl + Space",
+            "Ctrl + Right",
+            "Ctrl + Left",
+            "Ctrl + .",
+            "Ctrl + ,",
+            "Ctrl + L",
+        );
+    }
+
+    pub fn update_bindings(
+        &mut self,
+        hk_play_pause: &str,
+        hk_next: &str,
+        hk_prev: &str,
+        hk_forward: &str,
+        hk_backward: &str,
+        hk_like: &str,
+    ) {
+        self.unregister_all();
+
+        let bindings = [
+            (GlobalHotkeyAction::PlayPause, hk_play_pause),
+            (GlobalHotkeyAction::NextTrack, hk_next),
+            (GlobalHotkeyAction::PreviousTrack, hk_prev),
+            (GlobalHotkeyAction::SeekForward10s, hk_forward),
+            (GlobalHotkeyAction::SeekBackward10s, hk_backward),
+            (GlobalHotkeyAction::ToggleLike, hk_like),
         ];
 
-        for (action, hotkey) in defaults {
-            let _ = self.register_hotkey(action, hotkey);
+        for (action, s) in bindings {
+            if let Some(hotkey) = parse_hotkey_string(s) {
+                let _ = self.register_hotkey(action, hotkey);
+            }
         }
     }
 
@@ -116,13 +189,16 @@ impl GlobalHotkeysEngine {
             return None;
         }
 
-        if let Ok(event) = GlobalHotKeyEvent::receiver().try_recv() {
-            if event.state == HotKeyState::Released {
-                return self.get_action_for_id(event.id);
+        let mut triggered = None;
+        while let Ok(event) = GlobalHotKeyEvent::receiver().try_recv() {
+            if event.state == HotKeyState::Pressed {
+                if let Some(act) = self.get_action_for_id(event.id) {
+                    triggered = Some(act);
+                }
             }
         }
 
-        None
+        triggered
     }
 }
 
@@ -148,14 +224,27 @@ mod tests {
     #[test]
     fn test_hotkey_mapping_and_lookup() {
         let engine = GlobalHotkeysEngine::default();
-        let ctrl_alt = Some(Modifiers::CONTROL | Modifiers::ALT);
-        let space_key = HotKey::new(ctrl_alt, Code::Space);
+        let ctrl = Some(Modifiers::CONTROL);
+        let space_key = HotKey::new(ctrl, Code::Space);
 
         let action = engine.get_action_for_id(space_key.id());
         assert_eq!(action, Some(GlobalHotkeyAction::PlayPause));
 
         let retrieved_key = engine.get_hotkey_for_action(GlobalHotkeyAction::PlayPause);
         assert_eq!(retrieved_key, Some(space_key));
+    }
+
+    #[test]
+    fn test_cyrillic_and_string_parsing() {
+        let hk = parse_hotkey_string("Ctrl + Д").unwrap();
+        assert_eq!(hk.key, Code::KeyL);
+        assert_eq!(hk.mods, Modifiers::CONTROL);
+
+        let hk2 = parse_hotkey_string("Ctrl + Right").unwrap();
+        assert_eq!(hk2.key, Code::ArrowRight);
+
+        let hk3 = parse_hotkey_string("Ctrl + .").unwrap();
+        assert_eq!(hk3.key, Code::Period);
     }
 
     #[test]
