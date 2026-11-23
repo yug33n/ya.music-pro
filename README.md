@@ -7,7 +7,7 @@
 ### Нативный аудиофильский десктопный плеер для Яндекс Музыки на Rust и Slint
 
 [![Release](https://img.shields.io/badge/release-v0.1.0-orange.svg)](https://github.com/yug33n/ya.music-pro/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL_3.0-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.80%2B-blue.svg)](https://www.rust-lang.org)
 [![GUI](https://img.shields.io/badge/GUI-Slint-purple.svg)](https://slint.dev)
 [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011-lightgrey.svg)]()
@@ -121,7 +121,7 @@ cargo build --release
 
 ## Лицензия и отказ от ответственности
 
-Проект распространяется под условиями лицензии [MIT](LICENSE).
+Проект распространяется под условиями лицензии [GNU AGPLv3](LICENSE).
 
 > **Дисклеймер:**  
 > Данное программное обеспечение является независимой разработкой с открытым исходным кодом и не аффилировано с компанией Яндекс. Все товарные знаки, логотипы и названия музыкальных сервисов принадлежат их законным владельцам.
