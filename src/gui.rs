@@ -3039,10 +3039,8 @@ impl Ctx {
         }
         if !l.tracks.is_empty() {
             items.push(self.menu_entry("list-playlist", "Добавить в плейлист", icons.get_m_add_playlist(), true));
-            // У «Мне нравится» скачивание вынесено кнопкой в шапку.
-            if !likes {
-                items.push(self.menu_entry("list-download", "Скачать", icons.get_m_download(), false));
-            }
+            let dl_title = if l.album.is_some() { "Скачать альбом" } else { "Скачать плейлист" };
+            items.push(self.menu_entry("list-download", dl_title, icons.get_m_download(), false));
         }
         items.push(self.menu_entry("list-share", "Поделиться", icons.get_m_share(), true));
         if app.get_list_own() {
@@ -4344,6 +4342,10 @@ fn register_extra(app: &App) {
         with_ctx(|c| {
             let Some(data) = c.list() else { return };
             let Data::List(l) = &*data else { return };
+            if l.tracks.is_empty() {
+                c.toast("В списке нет треков");
+                return;
+            }
             c.download_tracks(l.title.clone(), l.tracks.clone());
         })
     });
