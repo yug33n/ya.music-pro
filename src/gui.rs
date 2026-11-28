@@ -1563,7 +1563,7 @@ fn set_icons(ui: &AppWindow, sprite: &Sprite) {
 }
 
 pub fn run(start_hidden: bool) -> Result<(), slint::PlatformError> {
-    let cfg = Config::load();
+    let mut cfg = Config::load();
     crate::api::set_lang(&cfg.lang);
     crate::i18n::set_lang(&cfg.lang);
     let dark = match cfg.theme.as_str() {
@@ -1622,6 +1622,10 @@ pub fn run(start_hidden: bool) -> Result<(), slint::PlatformError> {
     app.set_download_dir(music_dir(&cfg).display().to_string().into());
     app.set_download_flac(cfg.download_flac);
     app.set_log_volume(cfg.log_volume);
+    if cfg.hk_play_pause == "Space" {
+        cfg.hk_play_pause.clear();
+        cfg.save();
+    }
     app.set_hk_play_pause(cfg.hk_play_pause.clone().into());
     app.set_hk_next(cfg.hk_next.clone().into());
     app.set_hk_prev(cfg.hk_prev.clone().into());
