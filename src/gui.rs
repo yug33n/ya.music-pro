@@ -2463,15 +2463,26 @@ impl Ctx {
             st.pins.clear();
             st.history.clear();
             st.forward.clear();
+            st.liked_albums.clear();
+            st.liked_playlists.clear();
         }
         let ui = self.ui();
         let app = ui.global::<App>();
+        app.set_account_open(false);
+        app.set_account_sub(-1);
         app.set_login(SharedString::new());
         app.set_avatar(Image::default());
+        app.set_plus(false);
         app.set_pins(ModelRc::default());
         app.set_fullscreen(false);
+        app.set_has_track(false);
+        app.set_playing(false);
+        app.set_title(SharedString::new());
+        app.set_artists(SharedString::new());
+        app.set_cover(Image::default());
         self.navigate(Page::Wave, None, false);
         self.login_start();
+        self.toast("Вы вышли из аккаунта");
     }
 
     fn menu_entry(&self, id: &str, text: &str, icon: Image, submenu: bool) -> MenuEntry {
@@ -2830,6 +2841,7 @@ impl Ctx {
             "account" => sys::open_url("https://id.yandex.ru"),
             "settings" => self.navigate(Page::Settings, None, true),
             "support" => sys::open_url(SUPPORT_CHAT),
+            "logout" => self.logout(),
             _ => {}
         }
     }
