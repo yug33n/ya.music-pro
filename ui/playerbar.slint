@@ -189,6 +189,35 @@ export component PlayerBar inherits Rectangle {
             BarButton { x: c + 72px; y: 24px; icon: App.repeat == 2 ? Icons.repeat-one : Icons.repeat; enabled: on && !App.is-wave; active: App.repeat > 0; clicked => { App.cycle-repeat(); } }
             BarButton { x: c + 120px + 6px; y: 24px; icon: App.liked ? Icons.liked : Icons.like; enabled: on; clicked => { App.like(); } }
 
+            if App.sleep-timer-active: Rectangle {
+                x: parent.width - 245px - sleep-txt.preferred-width;
+                y: 26px;
+                width: sleep-txt.preferred-width + 28px;
+                height: 28px;
+                border-radius: 14px;
+                background: sleep-ta.has-hover ? #ffffff2e : #ffffff14;
+                animate background { duration: App.motion ? 150ms : 0ms; }
+                Icon {
+                    x: 6px;
+                    y: 6px;
+                    source: Icons.m-sleep;
+                    size: 16px;
+                    colorize: #ffdd00;
+                }
+                sleep-txt := Text {
+                    x: 24px;
+                    text: App.sleep-timer-text;
+                    vertical-alignment: center;
+                    font-size: 12px;
+                    font-weight: 700;
+                    color: #ffdd00;
+                }
+                sleep-ta := TouchArea {
+                    mouse-cursor: MouseCursor.pointer;
+                    clicked => { App.set-sleep-timer(0); }
+                }
+            }
+
             BarButton { x: parent.width - 193px; y: 24px; icon: Icons.lyrics; enabled: on && App.has-lyrics; clicked => { App.open-fullscreen(2); } }
             BarButton { x: parent.width - 145px; y: 24px; icon: Icons.queue; enabled: on; clicked => { App.open-fullscreen(1); } }
             BarButton { x: parent.width - 97px; y: 24px; icon: Icons.settings; active: App.eq-open; clicked => { App.eq-open = !App.eq-open; } }

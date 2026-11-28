@@ -63,18 +63,56 @@ export component CollectionPage inherits Rectangle {
                 color: Theme.controls-color-primary-text-enabled-variant;
             }
             HorizontalLayout {
-                alignment: start;
-                Text {
-                    text: T.t("У вашей музыки есть ");
-                    font-size: Theme.font-size-label-m;
-                    font-weight: 500;
-                    color: Theme.controls-color-primary-text-enabled;
+                alignment: space-between;
+                HorizontalLayout {
+                    alignment: start;
+                    Text {
+                        text: T.t("У вашей музыки есть ");
+                        font-size: Theme.font-size-label-m;
+                        font-weight: 500;
+                        color: Theme.controls-color-primary-text-enabled;
+                    }
+                    Text {
+                        text: T.t("цвет");
+                        font-size: Theme.font-size-label-m;
+                        font-weight: 500;
+                        color: #d317c7;
+                    }
                 }
-                Text {
-                    text: T.t("цвет");
-                    font-size: Theme.font-size-label-m;
-                    font-weight: 500;
-                    color: #d317c7;
+                Rectangle {
+                    width: hist-row.preferred-width;
+                    height: 32px;
+                    border-radius: 16px;
+                    background: hist-ta.has-hover ? Theme.controls-color-secondary-default-hovered : Theme.controls-color-secondary-default-enabled;
+                    animate background { duration: App.motion ? 150ms : 0ms; }
+                    hist-row := HorizontalLayout {
+                        height: 100%;
+                        alignment: center;
+                        spacing: 6px;
+                        padding-left: 12px;
+                        padding-right: 14px;
+                        Rectangle {
+                            width: 16px;
+                            height: 100%;
+                            Icon {
+                                y: (parent.height - self.height) / 2;
+                                source: Icons.history-m;
+                                size: 16px;
+                                colorize: Theme.controls-color-primary-text-enabled;
+                            }
+                        }
+                        Text {
+                            text: T.t("История прослушиваний");
+                            vertical-alignment: center;
+                            font-size: Theme.font-size-label-s;
+                            font-weight: 700;
+                            color: Theme.controls-color-primary-text-enabled-variant;
+                        }
+                    }
+                    hist-ta := TouchArea {
+                        mouse-cursor: MouseCursor.pointer;
+                        clicked => { App.navigate(Page.history); }
+                    }
                 }
             }
 

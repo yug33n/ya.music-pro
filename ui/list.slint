@@ -323,7 +323,7 @@ export component ListPage inherits Rectangle {
                 icon: Icons.more-small;
                 clicked => { App.open-list-menu(self.absolute-position.x + self.width / 2, self.absolute-position.y + self.height); }
             }
-            if likes: HeaderButton { icon: Icons.download-small; clicked => { App.list-download(); } }
+            if !artist: HeaderButton { icon: Icons.download-small; text: T.t("Скачать"); clicked => { App.list-download(); } }
         }
         if playlist && App.list-own: Rectangle {
             x: parent.width - 45px - self.width;
