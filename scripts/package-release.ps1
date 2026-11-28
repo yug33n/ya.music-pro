@@ -10,7 +10,7 @@ if (-not $Version) {
     if ($cargoContent -match 'version\s*=\s*"([^"]+)"') {
         $Version = $matches[1]
     } else {
-        $Version = "0.1.0"
+        $Version = "0.2.0"
     }
 }
 

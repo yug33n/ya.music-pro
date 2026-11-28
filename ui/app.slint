@@ -334,7 +334,7 @@ export component AppWindow inherits Window {
         opacity: k;
         x: (parent.width - self.width) / 2;
         y: Theme.spacer-size-m - (1 - k) * 16px;
-        width: min(parent.width * 0.9, update-text.preferred-width + Theme.spacer-size-l + Theme.spacer-size-m + changes.width + Theme.spacer-size-m + update-btn.width + Theme.spacer-size-xxs);
+        width: min(parent.width * 0.9, update-text.preferred-width + Theme.spacer-size-l + Theme.spacer-size-m + update-btn.width + Theme.spacer-size-xxs);
         height: update-btn.height + 2 * Theme.spacer-size-xxs;
         border-radius: Theme.radius-size-l;
         background: Theme.background-color-primary-enabled-popover;
@@ -345,26 +345,13 @@ export component AppWindow inherits Window {
         drop-shadow-color: #0000003d;
         update-text := Text {
             x: Theme.spacer-size-l;
-            width: changes.x - self.x - Theme.spacer-size-m;
+            width: update-btn.x - self.x - Theme.spacer-size-m;
             text: T.t("Доступна версия ") + App.update-version;
             overflow: elide;
             vertical-alignment: center;
             color: Theme.controls-color-primary-text-enabled-variant;
             font-size: Theme.font-size-label-m;
             font-weight: 500;
-        }
-        // Ссылка на список изменений, чтобы перед обновлением было видно, что поменялось в коде.
-        changes := Text {
-            x: update-btn.x - self.width - Theme.spacer-size-m;
-            text: T.t("Что изменилось");
-            vertical-alignment: center;
-            color: changes-ta.has-hover ? Theme.controls-color-primary-text-enabled-variant : Theme.controls-color-primary-text-enabled;
-            font-size: Theme.font-size-label-m;
-            font-weight: 500;
-            changes-ta := TouchArea {
-                mouse-cursor: MouseCursor.pointer;
-                clicked => { App.update-changes(); }
-            }
         }
         update-btn := Rectangle {
             x: parent.width - self.width - Theme.spacer-size-xxs;
