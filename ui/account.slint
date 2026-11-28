@@ -592,7 +592,7 @@ export component LoginScreen inherits Rectangle {
     card := VerticalLayout {
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.preferred-height) / 2 + (1 - root.appear) * 16px;
-        width: 520px;
+        width: 580px;
         spacing: 0;
         alignment: start;
         Rectangle {
@@ -608,9 +608,10 @@ export component LoginScreen inherits Rectangle {
             text: "Добро пожаловать в ya.music-pro!";
             horizontal-alignment: center;
             font-family: "YS Music Headline";
-            font-size: Theme.font-size-headline-xl;
+            font-size: Theme.font-size-headline-l;
             font-weight: 700;
             color: root.ink;
+            wrap: word-wrap;
         }
         Rectangle { height: 6px; }
         Text {

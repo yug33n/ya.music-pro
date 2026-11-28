@@ -73,7 +73,7 @@ pub struct Config {
     pub hk_like: String,
 }
 
-pub fn default_hk_play_pause() -> String { "Space".into() }
+pub fn default_hk_play_pause() -> String { "".into() }
 pub fn default_hk_next() -> String { "Ctrl + Right".into() }
 pub fn default_hk_prev() -> String { "Ctrl + Left".into() }
 pub fn default_hk_forward() -> String { "Ctrl + Shift + Right".into() }
