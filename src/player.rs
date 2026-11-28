@@ -1015,10 +1015,15 @@ impl Engine {
                 self.api = None;
                 self.uid.clear();
                 self.likes.lock().unwrap().clear();
-                let mut s = self.sh();
-                s.status = Status::LoggedOut;
-                s.login.clear();
-                s.uid.clear();
+                {
+                    let mut s = self.sh();
+                    s.status = Status::LoggedOut;
+                    s.login.clear();
+                    s.uid.clear();
+                    s.track = None;
+                    s.playing = false;
+                }
+                self.sync();
             }
             Cmd::Resume => self.resume(),
             Cmd::PlayPause if self.paused => self.resume(),
