@@ -325,7 +325,7 @@ export component ListPage inherits Rectangle {
             }
             if likes: HeaderButton { icon: Icons.download-small; clicked => { App.list-download(); } }
         }
-        if playlist && App.list-own: Rectangle {
+        if playlist && App.list-own && !likes: Rectangle {
             x: parent.width - 45px - self.width;
             y: buttons-y;
             width: upload.preferred-width + 48px;
@@ -339,7 +339,10 @@ export component ListPage inherits Rectangle {
                 font-weight: 500;
                 color: Theme.controls-color-secondary-on-default-enabled;
             }
-            up-ta := TouchArea { mouse-cursor: MouseCursor.pointer; }
+            up-ta := TouchArea {
+                mouse-cursor: MouseCursor.pointer;
+                clicked => { App.list-upload(); }
+            }
         }
 
         if !album: Rectangle {

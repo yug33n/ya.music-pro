@@ -80,6 +80,12 @@ pub fn pick_image(_: &slint::Window, title: &str) -> Option<String> {
         .flatten()
 }
 
+pub fn pick_audio(_: &slint::Window, title: &str) -> Option<String> {
+    dialog("zenity", &["--file-selection", "--title", title, "--file-filter", "*.mp3 *.flac *.wav *.m4a *.ogg"])
+        .or_else(|| dialog("kdialog", &["--title", title, "--getopenfilename", ".", "*.mp3 *.flac *.wav *.m4a *.ogg"]))
+        .flatten()
+}
+
 pub fn pick_folder(_: &slint::Window, title: &str, start: &str) -> Option<String> {
     let start = format!("{}/", start.trim_end_matches('/'));
     dialog("zenity", &["--file-selection", "--directory", "--title", title, "--filename", &start])

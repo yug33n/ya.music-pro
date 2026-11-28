@@ -863,7 +863,8 @@ impl Ctx {
             _ => {
                 let p = l.playlist.as_ref();
                 let date = p.map(|p| date_ru(&p.modified)).unwrap_or_default();
-                let mine = p.is_some_and(|p| p.uid == self.st.borrow().uid);
+                let is_likes = p.as_ref().is_some_and(|p| p.kind == "3") || l.title == "Мне нравится";
+                let mine = p.is_some_and(|p| p.uid == self.st.borrow().uid) && !is_likes;
                 let raw = p.map(|p| p.description.clone()).unwrap_or_default();
                 app.set_list_desc_raw(raw.clone().into());
                 let desc = match raw {
@@ -3039,7 +3040,7 @@ impl Ctx {
         let data = self.list()?;
         let Data::List(l) = &*data else { return None };
         let p = l.playlist.as_ref()?;
-        (p.uid == self.st.borrow().uid).then(|| (p.uid.clone(), p.kind.clone(), p.title.clone()))
+        (p.uid == self.st.borrow().uid && p.kind != "3").then(|| (p.uid.clone(), p.kind.clone(), p.title.clone()))
     }
 
     /// После правки на сервере: перечитать плейлист, список плейлистов и коллекцию.
@@ -3112,6 +3113,28 @@ impl Ctx {
             }
             Self::refresh_playlist(&net, &uid, &kind);
             Self::reload_pins(&net);
+        });
+    }
+
+    fn list_upload(self: &Rc<Self>) {
+        let Some((uid, kind, title)) = self.own_playlist() else { return };
+        let Some(net) = self.st.borrow().net.clone() else { return };
+        let ui = self.ui();
+        let Some(path) = sys::pick_audio(ui.window(), &crate::i18n::tr("Загрузить трек в плейлист")) else { return };
+        self.toast(format!("Загружаем трек в «{title}»..."));
+        std::thread::spawn(move || {
+            let res = std::fs::read(&path).map_err(|e| e.to_string()).and_then(|bytes| {
+                net.api.upload_track(&uid, &kind, &path, bytes)
+            });
+            match res {
+                Ok(name) => {
+                    net.say(format!("Трек «{name}» успешно добавлен в «{title}»"));
+                    Self::refresh_playlist(&net, &uid, &kind);
+                }
+                Err(e) => {
+                    net.say(e);
+                }
+            }
         });
     }
 
@@ -3937,6 +3960,7 @@ fn register_extra(app: &App) {
     app.on_list_save_title(|t| with_ctx(|c| c.list_save("name", t.to_string())));
     app.on_list_save_desc(|t| with_ctx(|c| c.list_save("description", t.to_string())));
     app.on_list_change_cover(|| with_ctx(|c| c.list_change_cover()));
+    app.on_list_upload(|| with_ctx(|c| c.list_upload()));
     app.on_list_remove_track(|i| with_ctx(|c| c.list_remove_track(i.max(0) as usize)));
     app.on_account_action(|id| with_ctx(|c| c.account_action(&id)));
     app.on_setting(|id| with_ctx(|c| c.setting(&id)));
