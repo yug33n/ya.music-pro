@@ -34,6 +34,8 @@ pub struct Group {
 
 /// Больше оригинал не показывает.
 const MAX_TRACKS: usize = 1000;
+/// Показываем и догружаем историю только за последние 3 дня.
+const MAX_DAYS: usize = 3;
 
 pub fn load(api: &Api) -> Res<Vec<Day>> {
     let mut v = api.get_raw("/music-history?fullModelsCount=50")?;
@@ -51,6 +53,9 @@ fn arr_mut<'a>(v: &'a mut Value, key: &str) -> impl Iterator<Item = &'a mut Valu
 }
 
 fn trim(v: &mut Value) {
+    if let Some(tabs) = v.get_mut("historyTabs").and_then(|t| t.as_array_mut()) {
+        tabs.truncate(MAX_DAYS);
+    }
     let mut left = MAX_TRACKS;
     for tab in arr_mut(v, "historyTabs") {
         for it in arr_mut(tab, "items") {
@@ -214,5 +219,21 @@ mod tests {
             .flat_map(|t| t["items"].as_array().unwrap().iter().map(|i| i["tracks"].as_array().unwrap().len()))
             .collect();
         assert_eq!(n, [700, 300, 0]);
+    }
+
+    #[test]
+    fn trims_to_three_days() {
+        let mut v = json!({ "historyTabs": [
+            { "date": "2026-01-05", "items": [{ "tracks": [] }] },
+            { "date": "2026-01-04", "items": [{ "tracks": [] }] },
+            { "date": "2026-01-03", "items": [{ "tracks": [] }] },
+            { "date": "2026-01-02", "items": [{ "tracks": [] }] },
+            { "date": "2026-01-01", "items": [{ "tracks": [] }] },
+        ]});
+        trim(&mut v);
+        let tabs = v.pointer("/historyTabs").unwrap().as_array().unwrap();
+        assert_eq!(tabs.len(), 3);
+        assert_eq!(tabs[0]["date"], "2026-01-05");
+        assert_eq!(tabs[2]["date"], "2026-01-03");
     }
 }

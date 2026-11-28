@@ -223,6 +223,7 @@ impl Default for GlobalHotkeysEngine {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use global_hotkey::hotkey::{Code, Modifiers};
 
     #[test]
     fn test_hotkey_mapping_and_lookup() {

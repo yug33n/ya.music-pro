@@ -80,20 +80,26 @@ export component CollectionPage inherits Rectangle {
                     }
                 }
                 Rectangle {
-                    width: hist-row.preferred-width + 24px;
+                    width: hist-row.preferred-width;
                     height: 32px;
                     border-radius: 16px;
                     background: hist-ta.has-hover ? Theme.controls-color-secondary-default-hovered : Theme.controls-color-secondary-default-enabled;
                     animate background { duration: App.motion ? 150ms : 0ms; }
                     hist-row := HorizontalLayout {
+                        height: 100%;
                         alignment: center;
                         spacing: 6px;
                         padding-left: 12px;
-                        padding-right: 12px;
-                        Icon {
-                            source: Icons.history-m;
-                            size: 16px;
-                            colorize: Theme.controls-color-primary-text-enabled;
+                        padding-right: 14px;
+                        Rectangle {
+                            width: 16px;
+                            height: 100%;
+                            Icon {
+                                y: (parent.height - self.height) / 2;
+                                source: Icons.history-m;
+                                size: 16px;
+                                colorize: Theme.controls-color-primary-text-enabled;
+                            }
                         }
                         Text {
                             text: T.t("История прослушиваний");
