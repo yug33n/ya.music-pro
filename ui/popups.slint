@@ -128,6 +128,7 @@ export component TrackMenu inherits Rectangle {
     property <color> shadow: App.menu-themed && !Theme.dark ? #00000029 : #0000007a;
     property <string> sid: App.submenu-open >= 0 && App.submenu-open < App.menu-items.length ? App.menu-items[App.submenu-open].id : "";
     property <bool> share: sid == "share" || sid == "list-share";
+    property <bool> sleep: sid == "sleep";
 
     function pick(id: string) {
         App.menu-open = false;
@@ -178,7 +179,7 @@ export component TrackMenu inherits Rectangle {
     }
 
     if App.submenu-open >= 0: Rectangle {
-        property <int> n: share ? 2 : App.menu-playlists.length;
+        property <int> n: share ? 2 : sleep ? 6 : App.menu-playlists.length;
         property <length> sh: min(n * 36px + 16px, 360px);
         x: box.x + w + 248px > root.width ? box.x - 248px : box.x + w - 4px;
         y: max(8px, min(box.y + 8px + App.submenu-open * 36px - 8px, root.height - sh - 8px));
@@ -209,7 +210,62 @@ export component TrackMenu inherits Rectangle {
             themed: App.menu-themed;
             clicked => { root.pick(root.sid + "-html"); }
         }
-        if !share: Flickable {
+        // «Таймер сна»: выбор времени
+        if sleep: MenuRow {
+            x: 8px;
+            y: 8px;
+            width: parent.width - 16px;
+            text: T.t("Отключить");
+            has-icon: false;
+            themed: App.menu-themed;
+            clicked => { App.menu-open = false; App.submenu-open = -1; App.set-sleep-timer(0); }
+        }
+        if sleep: MenuRow {
+            x: 8px;
+            y: 44px;
+            width: parent.width - 16px;
+            text: T.t("15 минут");
+            has-icon: false;
+            themed: App.menu-themed;
+            clicked => { App.menu-open = false; App.submenu-open = -1; App.set-sleep-timer(15); }
+        }
+        if sleep: MenuRow {
+            x: 8px;
+            y: 80px;
+            width: parent.width - 16px;
+            text: T.t("30 минут");
+            has-icon: false;
+            themed: App.menu-themed;
+            clicked => { App.menu-open = false; App.submenu-open = -1; App.set-sleep-timer(30); }
+        }
+        if sleep: MenuRow {
+            x: 8px;
+            y: 116px;
+            width: parent.width - 16px;
+            text: T.t("45 минут");
+            has-icon: false;
+            themed: App.menu-themed;
+            clicked => { App.menu-open = false; App.submenu-open = -1; App.set-sleep-timer(45); }
+        }
+        if sleep: MenuRow {
+            x: 8px;
+            y: 152px;
+            width: parent.width - 16px;
+            text: T.t("1 час");
+            has-icon: false;
+            themed: App.menu-themed;
+            clicked => { App.menu-open = false; App.submenu-open = -1; App.set-sleep-timer(60); }
+        }
+        if sleep: MenuRow {
+            x: 8px;
+            y: 188px;
+            width: parent.width - 16px;
+            text: T.t("В конце этого трека");
+            has-icon: false;
+            themed: App.menu-themed;
+            clicked => { App.menu-open = false; App.submenu-open = -1; App.set-sleep-timer(-1); }
+        }
+        if !share && !sleep: Flickable {
             x: 8px;
             y: 8px;
             width: parent.width - 16px;

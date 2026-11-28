@@ -81,6 +81,14 @@ struct State {
     trailer: Option<Trailer>,
     downloading: bool,
     hotkeys: crate::platform::GlobalHotkeysEngine,
+    sleep_timer: SleepTimer,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum SleepTimer {
+    Off,
+    Until(std::time::Instant),
+    EndOfTrack(Option<String>),
 }
 
 /// Трейлер: треки звучат по 12,5 с с середины, потом следующий.
@@ -223,6 +231,44 @@ impl Ctx {
         }
         if s.status == Status::Ready && self.st.borrow().net.is_none() {
             self.on_ready(&s.uid);
+        }
+
+        // Проверка таймера сна
+        let sleep_action = {
+            let mut st = self.st.borrow_mut();
+            match &st.sleep_timer {
+                SleepTimer::Off => None,
+                SleepTimer::Until(deadline) => {
+                    let now = std::time::Instant::now();
+                    if now >= *deadline {
+                        st.sleep_timer = SleepTimer::Off;
+                        Some("Таймер сна: воспроизведение остановлено")
+                    } else {
+                        let rem = (*deadline - now).as_secs();
+                        let mins = (rem + 59) / 60;
+                        app.set_sleep_timer_active(true);
+                        app.set_sleep_timer_text(format!("{mins} мин").into());
+                        None
+                    }
+                }
+                SleepTimer::EndOfTrack(expected_id) => {
+                    let current_id = s.track.as_ref().map(|t| t.id.clone());
+                    if expected_id.is_some() && current_id != *expected_id {
+                        st.sleep_timer = SleepTimer::Off;
+                        Some("Таймер сна: трек завершён")
+                    } else {
+                        app.set_sleep_timer_active(true);
+                        app.set_sleep_timer_text("1 трек".into());
+                        None
+                    }
+                }
+            }
+        };
+        if let Some(msg) = sleep_action {
+            app.set_sleep_timer_active(false);
+            app.set_sleep_timer_text(SharedString::new());
+            self.player.send(Cmd::PlayPause);
+            self.toast(msg);
         }
 
         let started = self.st.borrow().started;
@@ -1560,6 +1606,11 @@ fn set_icons(ui: &AppWindow, sprite: &Sprite) {
     icons.set_edit(get("edit_xxs"));
     icons.set_close_xs(get("close_xs"));
     icons.set_upload(get("upload_xxs"));
+    let moon_svg = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>"#;
+    if let Ok(img) = Image::load_from_svg_data(moon_svg.as_bytes()) {
+        icons.set_m_sleep(img.clone());
+        icons.set_sleep_small(img);
+    }
 }
 
 pub fn run(start_hidden: bool) -> Result<(), slint::PlatformError> {
@@ -1717,6 +1768,7 @@ pub fn run(start_hidden: bool) -> Result<(), slint::PlatformError> {
             trailer: None,
             downloading: false,
             hotkeys,
+            sleep_timer: SleepTimer::Off,
         }),
     });
     CTX.with(|c| *c.borrow_mut() = Some(ctx.clone()));
@@ -2787,6 +2839,14 @@ impl Ctx {
         items.push(self.menu_entry("playlist", "Добавить в плейлист", icons.get_m_add_playlist(), true));
         if t.lyrics && current {
             items.push(self.menu_entry("lyrics", "Показать текст песни", icons.get_m_lyrics(), false));
+        }
+        if current {
+            let sleep_title = match &self.st.borrow().sleep_timer {
+                SleepTimer::Off => "Таймер сна",
+                SleepTimer::Until(_) => "Таймер сна (включен)",
+                SleepTimer::EndOfTrack(_) => "Таймер сна (до конца трека)",
+            };
+            items.push(self.menu_entry("sleep", sleep_title, icons.get_m_sleep(), true));
         }
         items.push(self.menu_entry("share", "Поделиться", icons.get_m_share(), true));
         if t.album_id.is_some() {
@@ -4209,6 +4269,34 @@ fn register_extra(app: &App) {
             }
             c.apply_eq();
         })
+    });
+    app.on_set_sleep_timer(|mins| {
+        with_ctx(|c| {
+            let ui = c.ui();
+            let app = ui.global::<App>();
+            let mut st = c.st.borrow_mut();
+            if mins == 0 {
+                st.sleep_timer = SleepTimer::Off;
+                app.set_sleep_timer_active(false);
+                app.set_sleep_timer_text(SharedString::new());
+                drop(st);
+                c.toast("Таймер сна выключен");
+            } else if mins == -1 {
+                let track_id = c.player.state().track.map(|t| t.id);
+                st.sleep_timer = SleepTimer::EndOfTrack(track_id);
+                app.set_sleep_timer_active(true);
+                app.set_sleep_timer_text("1 трек".into());
+                drop(st);
+                c.toast("Музыка остановится после окончания трека");
+            } else {
+                let dur = Duration::from_secs((mins as u64) * 60);
+                st.sleep_timer = SleepTimer::Until(std::time::Instant::now() + dur);
+                app.set_sleep_timer_active(true);
+                app.set_sleep_timer_text(format!("{mins} мин").into());
+                drop(st);
+                c.toast(format!("Таймер сна: музыка выключится через {mins} мин"));
+            }
+        });
     });
     app.on_reset_wave(|| {
         with_ctx(|c| {

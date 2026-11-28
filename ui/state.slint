@@ -457,6 +457,10 @@ export global App {
     callback open-track-menu(length, length);
     callback menu-action(string);
     callback menu-playlist(int);
+    in-out property <string> sleep-timer-text: "";
+    in-out property <bool> sleep-timer-active: false;
+    callback set-sleep-timer(int);
+
     callback jump-queue(int);
     callback open-current-album();
     callback open-current-artist(int);
