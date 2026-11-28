@@ -177,6 +177,29 @@ pub fn pick_image(owner: &slint::Window, title: &str) -> Option<String> {
     Some(String::from_utf16_lossy(&buf[..n]))
 }
 
+/// Системный диалог выбора аудиофайла (MP3, FLAC, WAV, M4A, OGG). `None` — пользователь отказался.
+pub fn pick_audio(owner: &slint::Window, title: &str) -> Option<String> {
+    use windows_sys::Win32::UI::Controls::Dialogs::{GetOpenFileNameW, OFN_FILEMUSTEXIST, OFN_PATHMUSTEXIST, OPENFILENAMEW};
+    let filter: Vec<u16> = "Аудиофайлы (*.mp3, *.flac, *.wav, *.m4a, *.ogg)\0*.mp3;*.flac;*.wav;*.m4a;*.ogg\0Все файлы (*.*)\0*.*\0\0".encode_utf16().collect();
+    let title = wide(title);
+    let mut buf = vec![0u16; 1024];
+    unsafe {
+        let mut ofn: OPENFILENAMEW = std::mem::zeroed();
+        ofn.lStructSize = std::mem::size_of::<OPENFILENAMEW>() as u32;
+        ofn.hwndOwner = h(handle(owner));
+        ofn.lpstrFilter = filter.as_ptr();
+        ofn.lpstrFile = buf.as_mut_ptr();
+        ofn.nMaxFile = buf.len() as u32;
+        ofn.lpstrTitle = title.as_ptr();
+        ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+        if GetOpenFileNameW(&mut ofn) == 0 {
+            return None;
+        }
+    }
+    let n = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
+    Some(String::from_utf16_lossy(&buf[..n]))
+}
+
 /// Системный диалог выбора папки, открывается на `start`. `None` — пользователь отказался.
 pub fn pick_folder(owner: &slint::Window, title: &str, start: &str) -> Option<String> {
     use windows_sys::Win32::System::Com::CoTaskMemFree;

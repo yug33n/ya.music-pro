@@ -1608,6 +1608,51 @@ impl Api {
         Ok(v.pointer("/cover/uri").and_then(|u| u.as_str()).unwrap_or("").to_string())
     }
 
+    /// Загружает аудиофайл (MP3, FLAC, WAV, M4A, OGG) в плейлист.
+    pub fn upload_track(&self, uid: &str, kind: &str, file: &str, bytes: Vec<u8>) -> Res<String> {
+        let name = file.rsplit(['\\', '/']).next().unwrap_or("track.mp3").replace('"', "");
+        let boundary = format!("----yml{:x}", now().as_nanos());
+        let mime = if name.to_lowercase().ends_with(".flac") {
+            "audio/flac"
+        } else if name.to_lowercase().ends_with(".wav") {
+            "audio/wav"
+        } else if name.to_lowercase().ends_with(".m4a") {
+            "audio/mp4"
+        } else if name.to_lowercase().ends_with(".ogg") {
+            "audio/ogg"
+        } else {
+            "audio/mpeg"
+        };
+        let mut body = format!("--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{name}\"\r\nContent-Type: {mime}\r\n\r\n").into_bytes();
+        body.extend(bytes.clone());
+        body.extend(format!("\r\n--{boundary}--\r\n").into_bytes());
+
+        // 1. Попытка через ugc-upload.jsx
+        let ugc_url = format!("https://music.yandex.ru/handlers/ugc-upload.jsx?kind={kind}&filename={name}&visibility=private&external-domain=music.yandex.ru");
+        if let Ok(_) = self.send(
+            self.req(Method::POST, &ugc_url)
+                .header("Content-Type", format!("multipart/form-data; boundary={boundary}"))
+                .body(body.clone()),
+        ) {
+            return Ok(name);
+        }
+
+        // 2. Попытка через API плейлиста
+        let api_url = format!("/users/{uid}/playlists/{kind}/upload");
+        if let Ok(_) = self.send(
+            self.req(Method::POST, &api_url)
+                .header("Content-Type", format!("multipart/form-data; boundary={boundary}"))
+                .body(body),
+        ) {
+            return Ok(name);
+        }
+
+        // 3. Если требуется веб-сессия для загрузки, открываем страницу плейлиста в браузере
+        let web_url = format!("https://music.yandex.ru/users/{uid}/playlists/{kind}");
+        crate::sys::open_url(&web_url);
+        Err(format!("Для завершения загрузки «{name}» открыта страница плейлиста в браузере"))
+    }
+
     pub fn lyrics(&self, track_id: &str) -> Res<Lyrics> {
         let mut out = Lyrics::default();
         for format in ["LRC", "TEXT"] {
